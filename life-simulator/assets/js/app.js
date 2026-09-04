@@ -388,7 +388,7 @@ function takeAction(action) {
   if (careerFinanceScene) scenes.push(careerFinanceScene);
   const thresholdScene = detectThresholdScene();
   if (thresholdScene) scenes.push(thresholdScene);
-  if (Math.random() < 0.35) scenes.push(createExtraScene());
+  if (Math.random() < 0.55) scenes.push(createExtraScene());
   const milestone = createEducationMilestone();
   if (milestone) scenes.push(milestone);
   state.pendingScenes = scenes;
@@ -1208,8 +1208,49 @@ function createUniversityExtraScene() {
     { icon: "☎️", title: "家里打来的电话", story: `家人问起你在${admission.school}的生活。你报喜不报忧已经有一阵，电话那头仍听出了迟疑。`, choices: [
       { label: "说出最近真正困难的部分", effects: { family: 6, mood: 3 }, result: "家人未必能解决问题，但你不再一个人维持“都很好”的表象。" },
       { label: "只说顺利的事，让家里放心", effects: { family: 2, mood: -1 }, result: "电话平静结束，那些没说出口的话仍留在宿舍里。" }
+    ] },
+    { icon: "🎓", title: "奖学金答辩名单", story: "你的综合成绩进入候选范围，但还要提交材料并参加公开答辩，兼职和社团经历也会被询问。", choices: [
+      { label: "整理材料，认真参加答辩", requires: { study: 60 }, effects: { study: 2, health: -1 }, followUp: createScholarshipFollowUp(admission), result: "材料交上去了。真正决定结果的答辩安排在下周。" },
+      { label: "不参加，把时间留给课程和休息", effects: { health: 3, mood: 2 }, result: "你放弃了一次竞争，也没有让每个空档都变成考核。" }
+    ] },
+    { icon: "🧪", title: "实验数据和预期完全相反", story: `${admission.major}课程的小组实验连续三次得出异常结果。截止日期逼近，组员开始提议直接修改数据。`, choices: [
+      { label: "保留异常结果，重新检查过程", effects: { study: 5, health: -2, social: 1 }, result: "你们最后发现了操作误差，也在报告里写下真实失败过程。" },
+      { label: "按常见结果整理报告，先保证交付", effects: { study: 1, mood: -2 }, result: "报告顺利交出，那组被改过的数据却让你一直不踏实。" }
+    ] },
+    { icon: "🛏️", title: "室友突然决定搬出去", story: "室友因为实习和作息冲突申请换宿舍。留下的床位很快会安排新人，原来的生活规则也要重来。", choices: [
+      { label: "帮忙收拾，也好好告别", effects: { social: 4, mood: -1 }, result: "搬走不等于关系结束，你们约好以后仍然联系。" },
+      { label: "把注意力放到新室友和新规则", effects: { social: 3, study: 1 }, result: "新的相处并不立刻舒服，但你更早说清了彼此边界。" }
+    ] },
+    { icon: "🌍", title: "一学期交换项目", story: "学院公布交换名额。经历很吸引人，但语言准备、材料和额外费用都不轻。", choices: [
+      { label: "提交申请，争取这次机会", requires: { study: 68, money: 18 }, effects: { study: 4, social: 3, money: -12, family: -2 }, result: "申请材料寄出后，你开始认真面对离开熟悉环境的成本。" },
+      { label: "这次不去，寻找本地实践机会", effects: { study: 2, money: 3, mood: 2 }, result: "你错过了远方，也把资源留给了更适合当前状态的计划。" }
+    ] },
+    { icon: "💼", title: "实习和期末考试撞在一起", story: "实习单位临时把重要任务提前，恰好撞上两门期末考试。两边都说这是不能错过的节点。", choices: [
+      { label: "和实习主管协商交付时间", requires: { social: 45 }, effects: { social: 3, study: 3, mood: -2 }, result: "协商没有让任务消失，却争取到一段能真正完成考试的时间。" },
+      { label: "先保住考试，接受实习评价下降", effects: { study: 5, social: -3, mood: -1 }, result: "成绩稳住了，实习总结里却留下了配合不足的评价。" }
+    ] },
+    { icon: "🩺", title: "一次必须预约的检查", story: "持续的不适没有因为熬过期末周而消失。校医院建议你去做进一步检查，费用和时间都需要安排。", choices: [
+      { label: "按建议检查，不继续拖延", requires: { money: 5 }, effects: { health: 6, money: -5, mood: -1 }, result: "检查没有发现严重问题，也明确了接下来该如何恢复。" },
+      { label: "先调整作息，再观察一个月", effects: { health: 2, mood: 1 }, result: "症状暂时缓和，但你知道如果再次出现就不能继续拖。" }
     ] }
   ]) };
+}
+
+function createScholarshipFollowUp(admission) {
+  const strong = state.stats.study >= 72;
+  return {
+    id: createId(), icon: strong ? "🏅" : "📋", title: "奖学金答辩结果",
+    story: strong
+      ? `评审认可了你在${admission.major}课程里的持续表现，也追问了你如何平衡生活和学习。`
+      : "你的材料完整，但与其他候选人相比，课程成绩和实践经历还缺少一项明显优势。",
+    choices: strong ? [
+      { label: "接受奖励，并留下一部分作为应急金", effects: { money: 14, mood: 4, study: 1 }, result: "奖学金到账后，你没有立刻花掉全部，而是给未来留了一点缓冲。" },
+      { label: "用奖励参加一项专业训练", effects: { money: 6, study: 5, health: -1 }, result: "钱很快变成课程和材料，能力的增长则需要更久才能看见。" }
+    ] : [
+      { label: "向评审询问具体差距", effects: { study: 4, mood: -1 }, result: "没有得到奖金，但你拿到了一份比模糊失落更有用的改进方向。" },
+      { label: "接受结果，不再反复比较", effects: { mood: 4, health: 1 }, result: "名单不会改变，你把注意力重新放回自己的节奏。" }
+    ]
+  };
 }
 
 function createUniversityThresholdScene(key, band) {
@@ -1272,7 +1313,76 @@ function createExtraScene() {
   if (state.career) return createCareerExtraScene();
   if (["dropout", "work"].includes(state.education.track)) return generateLifeScene(state.character);
   if (isUniversityLife()) return createUniversityExtraScene();
-  return Math.random() < 0.5 ? pick(EVENTS) : generateLifeScene(state.character);
+  return Math.random() < 0.7 ? createSchoolExtraScene() : Math.random() < 0.5 ? pick(EVENTS) : generateLifeScene(state.character);
+}
+
+function createSchoolExtraScene() {
+  const friend = state.friends.length ? pick(state.friends) : null;
+  const family = state.character.family;
+  const scenes = [
+    {
+      icon: "📱", title: "手机屏幕突然碎了", story: "放学挤公交时手机从口袋滑落，屏幕裂出一道长纹。还能用，但触控开始失灵。",
+      choices: [
+        { label: "先用旧手机，坚持到下个月", effects: { mood: -2, money: 2 }, result: "使用很不方便，但你没有立刻打乱原来的预算。" },
+        { label: "拿出存下的钱去维修", requires: { money: 8 }, effects: { money: -8, mood: 3 }, result: "手机恢复正常，余额却明显薄了一截。" }
+      ]
+    },
+    {
+      icon: "🚌", title: "一次不在计划里的校外参观", story: "学校临时获得一个城市展馆的参观名额，需要周末出发，也要自己承担餐费和交通。",
+      choices: [
+        { label: "报名参加，去看看课堂之外的东西", requires: { money: 3 }, effects: { study: 3, social: 3, money: -3 }, result: "展览没有直接提高考试分数，却让一个抽象知识变得真实。" },
+        { label: "不参加，把周末留给原计划", effects: { study: 2, health: 2 }, result: "你错过了一次集体经历，也保住了原本安排好的时间。" }
+      ]
+    },
+    {
+      icon: "🏫", title: "班主任下学期要调走", story: "消息在班里传开。有人难过，有人松了一口气，也有人开始担心新的管理方式。",
+      choices: [
+        { label: "认真写一张告别卡片", effects: { social: 3, mood: 2, study: 1 }, result: "老师收下卡片时没有说很多，只提醒你以后也要为自己的选择负责。" },
+        { label: "保持平常，不把变化想得太重", effects: { mood: 2, health: 1 }, result: "告别安静发生，新的学期仍会按时到来。" }
+      ]
+    },
+    {
+      icon: "💼", title: "家里的工作安排发生变化", story: `${state.character.parent}。最近家里的工作时间和收入出现变化，饭桌上开始频繁讨论开支。`,
+      choices: [
+        { label: "主动减少自己的非必要花销", effects: { family: 5, money: 3, mood: -2 }, result: "你不能解决大人的工作问题，却让家里的预算稍微松了一点。" },
+        { label: "问清楚情况，不独自猜测", effects: { family: 4, mood: 2 }, result: "真实情况没有想象中可怕，但未来几个月确实需要更谨慎。" }
+      ]
+    },
+    {
+      icon: "📣", title: "班群里出现一条针对你的传言", story: "一段被截掉前后文的聊天记录在同学间转发，你发现讨论的主角正是自己。",
+      choices: [
+        { label: "找到最初转发的人，当面把事情说清楚", requires: { social: 35 }, effects: { social: 4, mood: -3 }, result: "不是所有人都相信解释，但传言没有继续任意生长。" },
+        { label: "保留证据，请班主任介入", effects: { study: 1, social: -1, mood: 2 }, result: "老师处理了传播源，班里的气氛仍花了一段时间才恢复。" }
+      ]
+    },
+    {
+      icon: "🏅", title: "一笔临时助学奖励", story: `${family.name}的资料和你最近的表现符合一项校内奖励条件，但申请需要公开部分家庭情况。`,
+      choices: [
+        { label: "接受现实需要，认真提交申请", requires: { study: 50 }, effects: { money: 10, study: 2, mood: -1 }, result: "奖励到账了，被别人知道家庭情况的不自在也真实存在。" },
+        { label: "不申请，保留自己的隐私", effects: { mood: 3 }, result: "你放弃了这笔钱，也保住了不想解释的部分。" }
+      ]
+    }
+  ];
+  if (friend) {
+    scenes.push({
+      icon: "💬", title: `和${friend.name}之间的一次误会`, story: `${friend.name}连续几天回复得很冷淡。你后来听说，对方以为你把一件私下说的话告诉了别人。`,
+      choices: [
+        { label: "约出来把事情从头说清楚", effects: { social: 2, mood: -2 }, special: { type: "adjustFriend", friendId: friend.id, amount: 5 }, followUp: createFriendTrustFollowUp(friend), result: "解释没有立刻换来原谅，但你们同意再核对一次消息来源。" },
+        { label: "先给彼此一点时间，不追着解释", effects: { mood: 1, social: -2 }, special: { type: "adjustFriend", friendId: friend.id, amount: -4 }, result: "冲突没有扩大，关系却暂时退回了更远的位置。" }
+      ]
+    });
+  }
+  return { id: createId(), ...pick(scenes) };
+}
+
+function createFriendTrustFollowUp(friend) {
+  return {
+    id: createId(), icon: "🔎", title: `误会的来源`, story: `你和${friend.name}终于找到最初那条消息，发现是另一位同学转述时漏掉了关键一句。现在要决定是否继续追究。`,
+    choices: [
+      { label: "只澄清事实，不把矛盾继续扩大", effects: { social: 4, mood: 3 }, special: { type: "adjustFriend", friendId: friend.id, amount: 7 }, result: `你和${friend.name}的关系慢慢恢复，也共同划清了以后谈论隐私的边界。` },
+      { label: "要求对方在群里公开道歉", effects: { social: 2, mood: 1 }, special: { type: "adjustFriend", friendId: friend.id, amount: 3 }, result: "道歉让事情结束得更明确，也让几个人之间留下了尴尬。" }
+    ]
+  };
 }
 
 function createCareerExtraScene() {
@@ -1315,7 +1425,90 @@ function createCareerExtraScene() {
       ]
     }
   ];
+  if (career.path === "job") {
+    scenes.push(
+      {
+        icon: "📉", title: "部门突然冻结招聘", story: `${career.employer}通知近期业务收缩。暂时没有明确裁员名单，但试用期和绩效较低的人最先感到压力。`,
+        choices: [
+          { label: "整理成果，主动和主管确认预期", effects: { study: 3, social: 2, mood: -2 }, result: "你没有获得绝对保证，却知道接下来必须守住哪些结果。" },
+          { label: "悄悄更新简历，同时维持当前工作", effects: { study: 2, social: 3, health: -1 }, result: "你没有立刻离职，但为最坏情况留了一条出口。" }
+        ]
+      },
+      {
+        icon: "📈", title: "主管提出一次晋升面谈", story: `你在${career.title}岗位的表现进入候选名单。新岗位工资更高，也会增加协调和加班责任。`,
+        choices: [
+          { label: "参加面谈，争取更高岗位", requires: { study: 58, social: 45 }, effects: { study: 2, mood: -1 }, followUp: createPromotionFollowUp(career), result: "你把做过的事情整理成具体结果，晋升讨论进入正式流程。" },
+          { label: "暂不竞争，先稳定生活状态", effects: { health: 3, mood: 3 }, result: "收入暂时不变，你也没有让刚稳定的生活再次失控。" }
+        ]
+      },
+      {
+        icon: "💸", title: "工资比约定日期晚了", story: "财务通知工资要延迟一周，但房租和生活账单仍按原日期到期。",
+        choices: [
+          { label: "使用应急金，等待正式到账", requires: { money: 6 }, effects: { money: -3, mood: -2 }, result: "账单没有逾期，应急金却少了一层缓冲。" },
+          { label: "和房东说明情况，协商延后几天", effects: { social: 2, mood: -2 }, result: "房东同意了这一次，也明确下个月不能继续拖延。" }
+        ]
+      }
+    );
+  } else {
+    scenes.push(
+      {
+        icon: "🚚", title: "供应商临时上调价格", story: `${career.name}常用的一项材料突然涨价，现有报价继续执行就会压缩利润。`,
+        choices: [
+          { label: "寻找新供应商并先做小批测试", effects: { study: 3, money: -3, social: 2 }, result: "新材料没有立刻全面替代，但你不再只有一个进货渠道。" },
+          { label: "维持原供应商，调整下一批报价", effects: { money: 2, social: -2 }, result: "成本暂时可控，一部分价格敏感的客户却离开了。" }
+        ]
+      },
+      {
+        icon: "⭐", title: "平台上出现一条差评", story: `一位客户给${career.name}留下低分评价，描述里既有真实问题，也有超出约定的要求。`,
+        choices: [
+          { label: "公开回应并补救真实问题", effects: { social: 4, money: -4, mood: -2 }, result: "差评没有删除，但后来的客户看到了你处理问题的方式。" },
+          { label: "提交申诉，不接受全部责任", effects: { study: 2, social: -1, mood: 1 }, result: "平台保留了评价，也撤掉了其中一项不实指控。" }
+        ]
+      },
+      {
+        icon: "🧾", title: "第一次认真处理经营手续", story: "业务开始持续产生收入，记账、票据和合规登记不再能靠记忆应付。",
+        choices: [
+          { label: "花钱请专业人员梳理一次", requires: { money: 6 }, effects: { money: -6, study: 4, mood: 2 }, result: "流程终于变清楚，也避免了以后更昂贵的补救。" },
+          { label: "自己查资料，先完成最必要部分", effects: { study: 5, health: -2, mood: -1 }, result: "你花了几个晚上，至少让账和票据开始能对得上。" }
+        ]
+      }
+    );
+  }
+  if (career.location === "away") {
+    scenes.push({
+      icon: "🔑", title: "房东通知下次续租要涨价", story: `现在的房租是 ${career.rent}。房东提出续租后每月再加 2，也允许你到期搬走。`,
+      choices: [
+        { label: "接受涨租，保留现在的通勤和生活", effects: { mood: -2 }, special: { type: "adjustCareer", rentDelta: 2 }, result: "你省下搬家折腾，之后每个月却要承担更高固定开支。" },
+        { label: "开始寻找更远但便宜的住处", effects: { money: -3, health: -2, study: 2 }, special: { type: "adjustCareer", rentDelta: -2, livingDelta: 1 }, result: "搬家花掉一笔钱，房租下降了，通勤和日常不便却增加。" },
+        { label: "不再续租，搬回家乡", effects: { family: 3, mood: -2 }, special: { type: "moveCareerHome" }, result: "你结束外地租房生活，机会范围变窄，固定开支也明显下降。" }
+      ]
+    });
+  }
+  if ((career.arrears ?? 0) > 0) {
+    scenes.push({
+      icon: "📨", title: "欠款提醒再次出现", story: `你还有 ${career.arrears} 没有结清。继续拖延不会立刻结束人生，但会压缩每一个新选择。`,
+      choices: [
+        { label: "拿出当前余额优先补欠款", requires: { money: 1 }, effects: {}, special: { type: "payArrears", amount: Math.min(10, career.arrears) }, result: "你先补上能承担的一部分，欠款开始下降。" },
+        { label: "继续保留现金，应对下个月基本生活", effects: { mood: -2 }, result: "欠款仍在，但你没有把手里最后的钱全部交出去。" }
+      ]
+    });
+  }
   return { id: createId(), ...pick(scenes) };
+}
+
+function createPromotionFollowUp(career) {
+  const passed = state.stats.study + state.stats.social >= 118;
+  return {
+    id: createId(), icon: passed ? "🪜" : "📋", title: "晋升面谈结果",
+    story: passed ? "主管认可了你的成果，但明确新岗位会同时负责进度和新人协作。" : "你的工作结果合格，但跨团队经验还不足，这次岗位给了另一位候选人。",
+    choices: passed ? [
+      { label: "接受晋升和新的责任", effects: { money: 5, health: -2 }, special: { type: "adjustCareer", incomeDelta: 4, title: `${career.title}（晋升）` }, result: "基本收入提高了，从下个月开始，责任和压力也会一起进入日常。" },
+      { label: "暂缓晋升，保留当前节奏", effects: { mood: 3, health: 2 }, result: "岗位没有变化，你保留了一次被认可的记录。" }
+    ] : [
+      { label: "询问差距，准备下一轮", effects: { study: 4, mood: -1 }, result: "这次没有涨薪，但你知道下一段经历该补在哪里。" },
+      { label: "不再纠结，把重心转回生活", effects: { mood: 4, health: 2 }, result: "结果没有改变，你也没有让一次落选占满接下来的日子。" }
+    ]
+  };
 }
 
 function createProjectActionScene() {
@@ -2051,6 +2244,13 @@ function applySpecialChoice(special) {
     state.career.rent += 3;
     state.career.utilities += 1;
     state.career.expansions = (state.career.expansions ?? 0) + 1;
+  }
+  if (special.type === "adjustCareer" && state.career) {
+    state.career.baseIncome = Math.max(0, state.career.baseIncome + (special.incomeDelta ?? 0));
+    state.career.rent = Math.max(0, state.career.rent + (special.rentDelta ?? 0));
+    state.career.utilities = Math.max(1, state.career.utilities + (special.utilitiesDelta ?? 0));
+    state.career.livingCost = Math.max(2, state.career.livingCost + (special.livingDelta ?? 0));
+    if (special.title) state.career.title = special.title;
   }
   if (special.type === "setRoute") {
     state.education.route = special.route;

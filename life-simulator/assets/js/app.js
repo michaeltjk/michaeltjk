@@ -22,7 +22,9 @@ const ACTION_CARE = {
   language: ["study"], coursework: ["study"], work: ["money"], skill: ["study"],
   network: ["social"], "job-search": ["study", "social"],
   course: ["study"], club: ["social", "mood"], parttime: ["money"],
-  internship: ["study", "social"], future: ["study"], certificate: ["study"]
+  internship: ["study", "social"], future: ["study"], certificate: ["study"],
+  operate: ["study", "money"], customers: ["social", "money"], product: ["study"],
+  cashflow: ["study", "money"], expand: ["social", "money"]
 };
 
 const BACKGROUND_DATA = {
@@ -156,6 +158,37 @@ const WORK_ACTIONS = [
   { id: "rest", icon: "🌙", name: "休息恢复", note: "身体是继续生活的本钱", color: "#dceced", effects: { health: 6, mood: 4, money: -1 } },
   { id: "luck", icon: "🎲", name: "试试运气", note: "花一点钱，接受完全随机的结果", color: "#ffe1c7", effects: { mood: 1 } }
 ];
+
+const JOB_ACTIONS = [
+  { id: "work", icon: "💼", name: "做好本职工作", note: "争取绩效、经验和稳定收入", color: "#ffe6ce", effects: { study: 2, social: 2, mood: -1, money: 3 } },
+  { id: "skill", icon: "🛠️", name: "提升职业技能", note: "为加薪或下一份工作做准备", color: "#dce8ff", effects: { study: 5, money: -2, health: -1 } },
+  { id: "network", icon: "🤝", name: "经营职场关系", note: "同事、前辈和行业联系人", color: "#ffe0e8", effects: { social: 6, money: -2, mood: 1 } },
+  { id: "job-search", icon: "📄", name: "寻找更好岗位", note: "更新简历并参加面试", color: "#daf2df", effects: { study: 3, social: 3, mood: -2 } },
+  { id: "finances", icon: "🧾", name: "管理收支", note: "核对工资、房租和日常预算", color: "#fff0bd", effects: { mood: 1 } },
+  { id: "family", icon: "🏠", name: "维系家庭", note: "在工作之外保留家人关系", color: "#eee2ff", effects: { family: 7, mood: 2, money: -3 } },
+  { id: "rest", icon: "🌙", name: "休息恢复", note: "避免工作和通勤耗尽身体", color: "#dceced", effects: { health: 6, mood: 4 } },
+  { id: "luck", icon: "🎲", name: "试试运气", note: "随机机会不等于稳定收入", color: "#ffe1c7", effects: { mood: 1 } }
+];
+
+const BUSINESS_ACTIONS = [
+  { id: "operate", icon: "🧮", name: "盯紧日常经营", note: "控制成本、交付和现金流", color: "#ffe6ce", effects: { study: 3, money: 4, health: -2, mood: -1 } },
+  { id: "customers", icon: "📣", name: "寻找客户", note: "推广、谈单和维护口碑", color: "#ffe0e8", effects: { social: 6, money: -2, mood: -1 } },
+  { id: "product", icon: "🛠️", name: "改进产品服务", note: "用时间换长期竞争力", color: "#dce8ff", effects: { study: 5, money: -3, health: -1 } },
+  { id: "cashflow", icon: "💹", name: "管理现金流", note: "核对收入、成本和欠款", color: "#fff0bd", effects: { study: 2, mood: -1 } },
+  { id: "expand", icon: "🚀", name: "尝试扩大经营", note: "高投入也可能带来更高回报", color: "#daf2df", effects: { social: 3, money: -8, health: -2 }, requiresBusinessMonths: 10 },
+  { id: "family", icon: "🏠", name: "处理家庭关系", note: "家人的支持也有边界和代价", color: "#eee2ff", effects: { family: 7, mood: 2 } },
+  { id: "rest", icon: "🌙", name: "停下来休息", note: "经营者也不是无限运转的机器", color: "#dceced", effects: { health: 6, mood: 4, money: -1 } },
+  { id: "luck", icon: "🎲", name: "试试运气", note: "运气不能替代稳定经营", color: "#ffe1c7", effects: { mood: 1 } }
+];
+
+const CAREER_BACKGROUND = {
+  "dual-income": { business: "社区生活服务工作室", homeJob: "本地企业运营助理", support: "家人能提供稳定住处，但启动资金有限" },
+  "small-business": { business: "家庭小店升级项目", homeJob: "家中店铺运营与采购", support: "父母熟悉客源、进货和日常经营" },
+  "single-parent": { business: "低成本线上服务工作室", homeJob: "社区服务机构职员", support: "家里能提供的资金很少，但愿意分担部分生活" },
+  intellectual: { business: "知识与教育内容工作室", homeJob: "本地教育机构课程运营", support: "家人能提供专业建议和人脉，但会谨慎评估风险" },
+  "migrant-worker": { business: "技能维修与上门服务", homeJob: "城郊制造企业技术岗", support: "家人能介绍实际工作，却难以承担大的创业损失" },
+  affluent: { business: "品牌与数字服务创业项目", homeJob: "家族熟悉企业的管理培训岗", support: "家庭能提供更高启动资金，也会介入经营决策" }
+};
 
 const COLLEGE_DATA = {
   elite: {
@@ -321,7 +354,7 @@ function generateOrigin(identityChoice) {
 
 function startLife() {
   state = {
-    version: 8,
+    version: 9,
     character: pendingOrigin,
     stats: { ...pendingOrigin.stats },
     turn: 0,
@@ -329,6 +362,7 @@ function startLife() {
     friends: [],
     projects: [],
     economy: { savingsGoal: null, ledger: [], chanceHistory: [], lottery: { tickets: 0, spent: 0, won: 0, bestPrize: 0 } },
+    career: null,
     balance: { lastActionId: null, repeatCount: 0, statBands: createStatBands(pendingOrigin.stats) },
     memories: [{ id: createId(), stage: "初一 · 九月", text: pendingOrigin.story, color: "#d9ff68" }],
     pendingScenes: [createOpeningScene(pendingOrigin)]
@@ -345,11 +379,13 @@ function takeAction(action) {
   if (actionEffects.money) recordMoneyChange(actionEffects.money, action.name);
   updateActionStreak(action.id);
   applyMonthlyPressure(action);
+  const careerFinanceScene = applyCareerEconomy(action);
   const stageBeforeAdvance = getStage(state.turn);
   addMemory(`${action.icon} ${action.name}：${action.note}。`, stageBeforeAdvance.label, action.color);
   state.turn += 1;
 
   const scenes = [createActionScene(action)];
+  if (careerFinanceScene) scenes.push(careerFinanceScene);
   const thresholdScene = detectThresholdScene();
   if (thresholdScene) scenes.push(thresholdScene);
   if (Math.random() < 0.35) scenes.push(createExtraScene());
@@ -429,7 +465,7 @@ function showOutcome(event, choice) {
     ? changes.map(([key, value]) => {
         const chip = document.createElement("span");
         chip.className = `effect-chip ${value > 0 ? "positive" : "negative"}`;
-        chip.textContent = `${STAT_META[key].icon} ${STAT_META[key].name} ${value > 0 ? "+" : ""}${value}`;
+        chip.textContent = `${STAT_META[key].icon} ${getStatDisplayName(key)} ${value > 0 ? "+" : ""}${value}`;
         return chip;
       })
     : [createNeutralChip("这段故事悄悄留在了记忆里")];
@@ -471,12 +507,14 @@ function renderGame() {
   document.querySelector("#characterName").textContent = character.name;
   document.querySelector("#lifeStage").textContent = `${stage.grade} · ${stage.month} · ${stage.age} 岁`;
   document.querySelector("#characterLine").textContent = isWorkingLife()
-    ? `${character.city}，已经进入社会，生活以工作、收入和独立生存为中心`
+    ? state.career
+      ? `${state.career.locationLabel} · ${state.career.path === "business" ? state.career.name : `${state.career.employer} · ${state.career.title}`} · ${state.career.housing}`
+      : `${character.city}，已经进入社会，生活以工作、收入和独立生存为中心`
     : isUniversityLife()
       ? `${state.education.admission.school} · ${state.education.admission.major} · ${state.education.admission.label}`
       : `${character.city}，就读于${character.school}`;
   document.querySelector("#familySummary").textContent = `${character.family.name}。${character.parent}。${character.family.detail}`;
-  document.querySelector("#backgroundTags").replaceChildren(
+  const backgroundTags = [
     makeTag(`性格 · ${character.personality}`),
     makeTag(`天赋 · ${character.talent.name}`),
     makeTag(`朋友 · ${state.friends.length ? state.friends.slice(0, 2).map((friend) => friend.name).join("、") : "还没有"}`),
@@ -493,7 +531,16 @@ function renderGame() {
     makeTag(state.economy.chanceHistory[0]
       ? `最近手气 · ${state.economy.chanceHistory[0].prize > state.economy.chanceHistory[0].stake ? "赚到" : state.economy.chanceHistory[0].prize === state.economy.chanceHistory[0].stake ? "回本" : "没中"}`
       : "最近手气 · 尚未尝试")
-  );
+  ];
+  if (state.career) {
+    backgroundTags.splice(5, 0,
+      makeTag(`去向 · ${state.career.path === "business" ? "创业" : "找工作"} · ${state.career.locationLabel}`),
+      makeTag(`住房 · ${state.career.housing}`),
+      makeTag(`固定开支 · 房租${state.career.rent} + 水电${state.career.utilities} + 生活${state.career.livingCost}`),
+      makeTag(`欠款 · ${state.career.arrears ?? 0}`)
+    );
+  }
+  document.querySelector("#backgroundTags").replaceChildren(...backgroundTags);
   document.querySelector("#turnCount").textContent = `已走过 ${state.turn} 个月`;
   document.querySelector("#monthHint").textContent = `${stage.grade}${stage.month}，选择一项行动推进时间`;
 
@@ -501,7 +548,7 @@ function renderGame() {
     const value = state.stats[key];
     const item = document.createElement("article");
     item.className = "stat";
-    item.innerHTML = `<div class="stat-head"><span class="stat-name">${meta.icon} ${meta.name}</span></div><div class="stat-value">${value}</div><div class="stat-bar"><i style="width:${Math.min(100, value)}%;--stat-color:${meta.color}"></i></div>`;
+    item.innerHTML = `<div class="stat-head"><span class="stat-name">${meta.icon} ${getStatDisplayName(key)}</span></div><div class="stat-value">${value}</div><div class="stat-bar"><i style="width:${Math.min(100, value)}%;--stat-color:${meta.color}"></i></div>`;
     return item;
   });
   document.querySelector("#statsGrid").replaceChildren(...statElements);
@@ -627,11 +674,54 @@ function applyMonthlyPressure(action) {
     if (!cared.has(key)) effects[key] = key === "study" || key === "health" || key === "mood" ? -2 : -1;
     if (state.stats[key] >= 78) effects[key] = (effects[key] ?? 0) - 1;
   });
-  if (!cared.has("money") && state.stats.money > 0) {
+  if (!cared.has("money") && state.stats.money > 0 && !state.career) {
     effects.money = -1;
     recordMoneyChange(-1, "本月日常小支出");
   }
   applyToStats(state.stats, effects);
+}
+
+function applyCareerEconomy(action) {
+  const career = state.career;
+  if (!career || !isWorkingLife()) return null;
+  career.months = (career.months ?? 0) + 1;
+  const incomeSwing = career.path === "business" ? randomBetween(-7, 8) : randomBetween(-1, 2);
+  const actionBonus = career.path === "job" && action.id === "work" ? 2
+    : career.path === "business" && ["operate", "customers"].includes(action.id) ? 3 : 0;
+  const income = Math.max(0, career.baseIncome + incomeSwing + actionBonus);
+  const utilities = Math.max(1, career.utilities + randomBetween(-1, 2));
+  const totalCost = career.rent + utilities + career.livingCost;
+
+  applyToStats(state.stats, { money: income });
+  recordMoneyChange(income, career.path === "business" ? `${career.name}本月经营收入` : `${career.employer}工资到账`);
+  const paid = Math.min(state.stats.money, totalCost);
+  applyToStats(state.stats, { money: -paid });
+  if (paid) recordMoneyChange(-paid, `住房与生活支出（房租${career.rent}·水电${utilities}·生活${career.livingCost}）`);
+  const shortfall = totalCost - paid;
+  career.lastSettlement = { income, rent: career.rent, utilities, livingCost: career.livingCost, totalCost, paid, shortfall, turn: state.turn };
+  career.arrears = (career.arrears ?? 0) + shortfall;
+  addMemory(
+    `💳 本月结算：收入 ${income}，房租 ${career.rent}、水电 ${utilities}、生活费 ${career.livingCost}${shortfall ? `，尚欠 ${shortfall}` : "，已结清"}。`,
+    getStage(state.turn).label,
+    shortfall ? "#ff91ad" : "#fff0bd"
+  );
+  return shortfall > 0 ? createArrearsScene(shortfall) : null;
+}
+
+function createArrearsScene(shortfall) {
+  const career = state.career;
+  const choices = [
+    { label: "接临时活，先补一部分缺口", effects: { money: 8, health: -4, mood: -2 }, special: { type: "payArrears", amount: 8 }, result: "你用额外工时换来一笔钱，欠款少了，但身体也更疲惫。" },
+    { label: "向家人说明情况，暂时周转", effects: { money: Math.min(12, career.arrears), family: -4 }, special: { type: "payArrears", amount: Math.min(12, career.arrears) }, result: "家里帮你挡住了眼前的缺口，也要求你重新做一份能长期维持的预算。" },
+    { label: "先记下欠款，下个月再处理", effects: { mood: -3 }, result: "账单没有消失，欠款会继续影响之后的选择。" }
+  ];
+  if (career.location === "away") {
+    choices.push({ label: "结束外地生活，搬回家降低开支", effects: { family: 3, mood: -2 }, special: { type: "moveCareerHome" }, result: "你退掉住处回到家乡。机会少了一些，但下个月不再承担外地房租。" });
+  }
+  return {
+    id: createId(), icon: "🧾", title: "这个月的钱不够付完账单",
+    story: `收入到账后仍差 ${shortfall}，累计欠款达到 ${career.arrears}。房租、水电和吃饭不会因为计划失误自动消失。`, choices
+  };
 }
 
 function createStatBands(stats) {
@@ -714,8 +804,8 @@ function createThresholdScene(key, band) {
 }
 
 function getActionLockReason(action) {
-  if (state.stats.health < 25 && ["study", "language", "coursework", "activity", "work", "skill", "job-search", "course", "parttime", "internship", "future"].includes(action.id)) return "健康过低，必须先恢复身体";
-  if (state.stats.mood < 25 && ["study", "language", "coursework", "activity", "work", "course", "parttime", "internship", "future"].includes(action.id)) return "心情过低，暂时无法承担高压行动";
+  if (state.stats.health < 25 && ["study", "language", "coursework", "activity", "work", "skill", "job-search", "course", "parttime", "internship", "future", "operate", "customers", "product", "expand"].includes(action.id)) return "健康过低，必须先恢复身体";
+  if (state.stats.mood < 25 && ["study", "language", "coursework", "activity", "work", "course", "parttime", "internship", "future", "operate", "customers", "product", "expand"].includes(action.id)) return "心情过低，暂时无法承担高压行动";
   if (state.stats.social < 25 && action.id === "activity") return "人缘过低，暂时无法加入合作项目";
   if (isUniversityLife()) {
     const admission = state.education.admission;
@@ -723,6 +813,8 @@ function getActionLockReason(action) {
     if (action.minCollegeMonth && elapsed < action.minCollegeMonth) return `入学满 ${Math.ceil(action.minCollegeMonth / 10)} 年后开放`;
     if (action.finalYearOnly && elapsed < admission.duration - 10) return "进入最后一学年后开放";
   }
+  if (action.requiresBusinessMonths && (state.career?.months ?? 0) < action.requiresBusinessMonths) return `经营满 ${action.requiresBusinessMonths} 个月后开放`;
+  if (state.career?.arrears >= 20 && action.id === "expand") return "欠款过高，不能继续扩张";
   return null;
 }
 
@@ -802,7 +894,7 @@ function getUnmetRequirements(requirements) {
 }
 
 function formatRequirements(requirements) {
-  return Object.entries(requirements ?? {}).map(([key, value]) => `${STAT_META[key].name}≥${value}`).join("、");
+  return Object.entries(requirements ?? {}).map(([key, value]) => `${getStatDisplayName(key)}≥${value}`).join("、");
 }
 
 function saveGame() {
@@ -832,7 +924,7 @@ function loadGame() {
     if (backgroundRepaired && previousStory) {
       saved.memories = saved.memories.map((memory) => memory.text === previousStory ? { ...memory, text: saved.character.story } : memory);
     }
-    saved.version = 8;
+    saved.version = 9;
     saved.education ??= { route: "undecided", track: saved.turn < 30 ? "middle-school" : "academic", exitTurn: null };
     if (saved.education.track === "university" && !saved.education.admission) {
       const wasVocational = saved.memories.some((memory) => String(memory.stage ?? "").includes("中职"));
@@ -856,6 +948,7 @@ function loadGame() {
     saved.economy.ledger ??= [];
     saved.economy.chanceHistory ??= [];
     saved.economy.lottery ??= { tickets: 0, spent: 0, won: 0, bestPrize: 0 };
+    saved.career ??= null;
     saved.balance ??= { lastActionId: null, repeatCount: 0, statBands: createStatBands(saved.stats) };
     saved.balance.statBands ??= createStatBands(saved.stats);
     saved.pendingScenes ??= saved.pendingScene ? [saved.pendingScene] : [];
@@ -877,7 +970,9 @@ function loadGame() {
 
 function getAvailableActions() {
   let actions;
-  if (["dropout", "work"].includes(state.education.track)) actions = WORK_ACTIONS;
+  if (isWorkingLife() && state.career?.path === "job") actions = JOB_ACTIONS;
+  else if (isWorkingLife() && state.career?.path === "business") actions = BUSINESS_ACTIONS;
+  else if (["dropout", "work"].includes(state.education.track)) actions = WORK_ACTIONS;
   else if (isUniversityLife()) actions = COLLEGE_ACTIONS;
   else if (state.education.route === "international" && state.turn >= 20) actions = INTERNATIONAL_ACTIONS;
   else actions = SCHOOL_ACTIONS;
@@ -898,7 +993,9 @@ function getRouteLabel() {
 }
 
 function getEducationSummary() {
-  if (isWorkingLife()) return "已进入社会";
+  if (isWorkingLife()) return state.career
+    ? `${state.career.path === "business" ? "创业经营" : "在职"} · ${state.career.locationLabel}`
+    : "已进入社会";
   if (state.education.retaking) return "高考复读中";
   const admission = state.education.admission;
   if (admission) return `${admission.school} · ${admission.major}`;
@@ -907,11 +1004,19 @@ function getEducationSummary() {
 
 function formatEffectSummary(effects) {
   return Object.entries(effects)
-    .map(([key, value]) => `${STAT_META[key].name}${value > 0 ? "+" : ""}${value}`)
+    .map(([key, value]) => `${getStatDisplayName(key)}${value > 0 ? "+" : ""}${value}`)
     .join(" · ");
 }
 
+function getStatDisplayName(key) {
+  if (key !== "money") return STAT_META[key].name;
+  if (state?.career) return state.career.path === "business" ? "经营资金" : "可用资金";
+  if (isUniversityLife()) return "生活费";
+  return "零花钱";
+}
+
 function createActionScene(action) {
+  if (isWorkingLife() && state.career) return createCareerActionScene(action);
   if (isUniversityLife()) {
     if (action.id === "finances") return createMoneyScene();
     if (action.id === "luck") return createLuckScene();
@@ -1164,9 +1269,53 @@ function createUniversityThresholdScene(key, band) {
 }
 
 function createExtraScene() {
+  if (state.career) return createCareerExtraScene();
   if (["dropout", "work"].includes(state.education.track)) return generateLifeScene(state.character);
   if (isUniversityLife()) return createUniversityExtraScene();
   return Math.random() < 0.5 ? pick(EVENTS) : generateLifeScene(state.character);
+}
+
+function createCareerExtraScene() {
+  const career = state.career;
+  const scenes = [
+    {
+      icon: "🔌", title: "这个月的水电账单比预期高",
+      story: `${career.housing}的实际开支并不完全固定。空调、热水和公共费用让账单多了几项。`,
+      choices: [
+        { label: "核对明细并调整下个月用量", effects: { study: 2, money: -2 }, result: "钱还是花了，但你开始知道生活成本具体从哪里产生。" },
+        { label: "先正常缴费，不让生活被账单占满", effects: { money: -4, mood: 2 }, result: "你付清了账单，也保留了这个月基本的舒适。" }
+      ]
+    },
+    career.location === "away" ? {
+      icon: "🏘️", title: "合租房里的公共开支",
+      story: "室友提出重新分摊网费和清洁用品，但每个人在家的时间不同，怎么算都有人觉得吃亏。",
+      choices: [
+        { label: "按人数均摊，并把规则写清楚", effects: { social: 3, money: -2 }, result: "规则不可能绝对公平，但之后少了很多重复争执。" },
+        { label: "少争论一次，自己多承担一点", effects: { social: 1, money: -4, mood: -1 }, result: "事情很快过去，你也意识到退让会变成别人默认的规则。" }
+      ]
+    } : {
+      icon: "🍚", title: "住在家里也不是完全免费",
+      story: "家人没有收房租，但买菜、网络和家务都是真实成本。你需要决定如何分担。",
+      choices: [
+        { label: "固定承担一部分家庭开支", effects: { family: 5, money: -4 }, result: "住家成本仍然很低，但你不再把家人的承担当作理所当然。" },
+        { label: "多做家务，暂时保留现金", effects: { family: 4, health: -1 }, result: "你用时间分担了生活，现金压力没有继续增加。" }
+      ]
+    },
+    career.path === "business" ? {
+      icon: "📦", title: "一笔突然取消的订单", story: `客户临时取消了${career.name}的一笔订单，已经投入的材料和时间无法全部收回。`,
+      choices: [
+        { label: "把现有成果改成可再次销售的版本", effects: { study: 3, money: -2 }, result: "损失没有消失，但剩余投入被转成了下一次机会。" },
+        { label: "接受损失，今后先收定金", effects: { money: -4, study: 2, mood: -2 }, result: "这次付了学费，之后的合同里多了一条明确规则。" }
+      ]
+    } : {
+      icon: "🚇", title: "通勤时间正在吞掉晚上", story: `从${career.housing}到${career.employer}的往返，让工作日剩下的时间比想象中更少。`,
+      choices: [
+        { label: "利用通勤学习一点职业内容", effects: { study: 3, health: -1 }, result: "碎片时间有了用途，但大脑也更难真正停下来。" },
+        { label: "通勤时彻底休息，不再处理工作", effects: { mood: 3, health: 1 }, result: "路程没有变短，但它不再全部属于公司。" }
+      ]
+    }
+  ];
+  return { id: createId(), ...pick(scenes) };
 }
 
 function createProjectActionScene() {
@@ -1732,6 +1881,72 @@ function createCollegeAdmission(level, score) {
   };
 }
 
+function getCareerEducationBonus() {
+  const level = state.education.admission?.level;
+  return ({ postgraduate: 7, elite: 5, overseas: 5, bachelor: 3, topup: 3, junior: 1 }[level] ?? 0);
+}
+
+function buildCareerProfile(path, location) {
+  const background = CAREER_BACKGROUND[state.character.family.id] ?? CAREER_BACKGROUND["dual-income"];
+  const away = location === "away";
+  const educationBonus = getCareerEducationBonus();
+  if (path === "job") {
+    const title = away ? `${state.education.admission?.major ?? "综合"}相关岗位` : background.homeJob;
+    return {
+      path, location, locationLabel: away ? "去外地闯荡" : "留在家乡",
+      title, employer: away ? "外地成长型公司" : `${state.character.city}本地单位`,
+      housing: away ? "与人合租" : "与家人同住",
+      baseIncome: (away ? 18 : 13) + educationBonus,
+      rent: away ? 8 : 0, utilities: away ? 3 : 2, livingCost: away ? 6 : 4,
+      arrears: 0, months: 0, startedTurn: state.turn
+    };
+  }
+  return {
+    path, location, locationLabel: away ? "去外地闯荡" : "留在家乡",
+    name: background.business,
+    title: "经营者", employer: background.business,
+    housing: away ? "与人合租并租用共享工位" : "住在家中并从低成本场地起步",
+    baseIncome: away ? 18 : 12,
+    rent: away ? 9 : 2, utilities: away ? 4 : 3, livingCost: away ? 6 : 4,
+    arrears: 0, months: 0, startedTurn: state.turn
+  };
+}
+
+function createCareerLocationScene(path) {
+  const background = CAREER_BACKGROUND[state.character.family.id] ?? CAREER_BACKGROUND["dual-income"];
+  const homeCareer = buildCareerProfile(path, "home");
+  const awayCareer = buildCareerProfile(path, "away");
+  const resourceLevel = state.character.family.resourceLevel;
+  const homeStartup = path === "business" ? Math.max(8, 30 - resourceLevel * 4) : 0;
+  const awayStartup = path === "business" ? homeStartup + 10 : 8;
+  const pathText = path === "business" ? `创业方向是“${background.business}”。${background.support}` : `家乡可接触的岗位是“${background.homeJob}”。${background.support}`;
+  return {
+    id: createId(), icon: path === "business" ? "🚀" : "🧳",
+    title: path === "business" ? "在哪里开始创业" : "留在家乡，还是去外地",
+    story: `${pathText} 留乡成本低、家庭联系更稳定；外地机会和收入上限较高，但要先承担搬家、房租、水电和独立生活费。`,
+    choices: [
+      {
+        label: path === "business" ? `留在家乡，从${background.business}起步` : `留在家乡，接受${background.homeJob}`,
+        requires: path === "business" ? { money: homeStartup } : undefined,
+        effects: path === "business" ? { money: -homeStartup, family: 4, mood: 1 } : { family: 5, mood: 1 },
+        special: { type: "startCareer", career: homeCareer, graduated: true },
+        result: path === "business"
+          ? `你投入 ${homeStartup} 作为启动资金，利用熟悉的家庭与社区资源开始经营。`
+          : "你留在熟悉的城市开始工作，没有房租压力，但收入和机会也更接近本地水平。"
+      },
+      {
+        label: path === "business" ? `去外地，把${background.business}做成独立项目` : "去外地闯荡，先租房再找工作",
+        requires: { money: awayStartup },
+        effects: { money: -awayStartup, family: -4, social: 3, mood: -2 },
+        special: { type: "startCareer", career: awayCareer, graduated: true },
+        result: path === "business"
+          ? `你拿出 ${awayStartup} 支付启动、搬家和押金，到了外地从零寻找客户。`
+          : "你支付了搬家和押金，在外地与人合租。更高的工资要先经过试用期和每月生活成本检验。"
+      }
+    ]
+  };
+}
+
 function createCollegeGraduationScene() {
   const admission = state.education.admission;
   const choices = [];
@@ -1742,7 +1957,20 @@ function createCollegeGraduationScene() {
     const postgraduate = createCollegeAdmission("postgraduate", admission.score);
     choices.push({ label: `继续读研：${postgraduate.school} · ${postgraduate.major}`, requires: { study: 70, money: 20 }, effects: { study: 5, money: -12, health: -2 }, special: { type: "enrollCollege", admission: postgraduate }, result: "你没有把读研当作自动延期就业，而是接受了新的研究和毕业门槛。" });
   }
-  choices.push({ label: "完成学业，进入社会求职", effects: { study: 2, money: 8, family: 4 }, special: { type: "setTrack", track: "work", graduated: true }, result: `你拿到${admission.label}毕业证，开始面对岗位、工资和城市成本。` });
+  const background = CAREER_BACKGROUND[state.character.family.id] ?? CAREER_BACKGROUND["dual-income"];
+  const minimumStartup = Math.max(8, 30 - state.character.family.resourceLevel * 4);
+  choices.push(
+    {
+      label: "直接就业：先找一份工作", effects: { study: 2, family: 2 },
+      followUp: createCareerLocationScene("job"),
+      result: `你拿到${admission.label}毕业证，开始比较家乡岗位、外地工资和真实居住成本。`
+    },
+    {
+      label: `尝试创业：${background.business}`, requires: { money: minimumStartup }, effects: { study: 2, mood: 2 },
+      followUp: createCareerLocationScene("business"),
+      result: `你没有把创业理解成自动赚钱，而是先根据${state.character.family.name}能提供的资源确定低成本起点。`
+    }
+  );
   return {
     id: createId(), icon: "🎓", title: `${admission.school}毕业季`,
     story: `你完成了${admission.major}专业的${Math.round(admission.duration / 10)}年学制。成绩、实习、人际关系和家庭条件共同影响下一步，但毕业不会自动兑换成理想工作。`,
@@ -1795,6 +2023,34 @@ function applySpecialChoice(special) {
     state.economy.lottery.spent += special.stake;
     state.economy.lottery.won += special.prize;
     state.economy.lottery.bestPrize = Math.max(state.economy.lottery.bestPrize, special.prize);
+  }
+  if (special.type === "startCareer") {
+    state.career = { ...special.career, startedTurn: state.turn, months: 0, arrears: 0 };
+    state.education.track = "work";
+    state.education.exitTurn = state.turn;
+    state.education.retaking = false;
+    if (special.graduated && state.education.admission) state.education.admission.graduatedAt = getStage(state.turn).label;
+  }
+  if (special.type === "payArrears" && state.career) {
+    const payment = Math.min(special.amount, state.career.arrears ?? 0, state.stats.money);
+    applyToStats(state.stats, { money: -payment });
+    state.career.arrears = Math.max(0, (state.career.arrears ?? 0) - payment);
+    if (payment) recordMoneyChange(-payment, "补交生活欠款");
+  }
+  if (special.type === "moveCareerHome" && state.career) {
+    state.career.location = "home";
+    state.career.locationLabel = "搬回家乡";
+    state.career.housing = "与家人同住";
+    state.career.rent = state.career.path === "business" ? 2 : 0;
+    state.career.utilities = state.career.path === "business" ? 3 : 2;
+    state.career.livingCost = 4;
+    state.career.baseIncome = Math.max(8, state.career.baseIncome - 4);
+  }
+  if (special.type === "expandCareer" && state.career?.path === "business") {
+    state.career.baseIncome += 5;
+    state.career.rent += 3;
+    state.career.utilities += 1;
+    state.career.expansions = (state.career.expansions ?? 0) + 1;
   }
   if (special.type === "setRoute") {
     state.education.route = special.route;
@@ -1854,6 +2110,89 @@ function createOpeningScene(origin) {
       { label: "再玩一会儿，反正明天才正式开始", effects: { mood: 2, health: -1 }, result: "这一晚轻松地过去了，只是第二天的闹钟显得格外刺耳。" }
     ]
   };
+}
+
+function createCareerActionScene(action) {
+  if (action.id === "luck") return createLuckScene();
+  const career = state.career;
+  const isBusiness = career.path === "business";
+  const sceneMap = {
+    work: {
+      icon: "💼", title: `${career.employer}的一次考核`,
+      story: `主管把一项时间紧、责任明确的任务交给你。做好可能换来绩效，出错也会直接写进评价。`,
+      choices: [
+        { label: "先确认标准，再按节点交付", effects: { study: 3, social: 2, money: 3 }, result: "任务按时交付，绩效里多了一条可以被看见的结果。" },
+        { label: "主动多接一部分，争取更高评价", effects: { money: 6, health: -4, mood: -2 }, result: "收入和评价提高了，但连续加班也留下了真实疲惫。" }
+      ]
+    },
+    skill: {
+      icon: "🛠️", title: "下班后的技能课程", story: `你找到一门和${career.title}相关的课程，但学习会占掉连续几个晚上。`,
+      choices: [
+        { label: "完成课程并做一份作品", effects: { study: 5, health: -2, money: -2 }, result: "证书不保证涨薪，但作品让下一次面试有了具体内容。" },
+        { label: "只补当前工作最缺的一项", effects: { study: 3, mood: 2 }, result: "你没有贪多，先解决了眼前最常返工的问题。" }
+      ]
+    },
+    network: {
+      icon: "🤝", title: "行业里的一次新联系", story: `一位前辈愿意介绍你认识同行，但聚会需要花时间和一笔交通餐饮费。`,
+      choices: [
+        { label: "赴约并认真了解对方的工作", effects: { social: 5, money: -3, study: 2 }, result: "没有立刻得到工作，但你知道了行业里真实的招聘标准。" },
+        { label: "先在线联系，保留以后见面的机会", effects: { social: 3, mood: 1 }, result: "关系没有突飞猛进，却留下了一条以后可以继续联系的线。" }
+      ]
+    },
+    "job-search": {
+      icon: "📄", title: "一份更好的岗位邀请", story: `另一家公司给出面试机会，工资可能更高，但通勤、试用期和稳定性都需要重新计算。`,
+      choices: [
+        { label: "参加面试，先拿到具体条件再判断", effects: { study: 3, social: 3, mood: -1 }, result: "你拿到了一份可比较的条件，而不是只凭想象辞职。" },
+        { label: "暂时留下，先积累半年经验", effects: { mood: 2, study: 1 }, result: "你没有追逐每一个机会，而是给当前履历留出完整的一段经历。" }
+      ]
+    },
+    finances: {
+      icon: "🧾", title: "重新核对这个月的生活账", story: `你的固定开支是房租 ${career.rent}、基础水电 ${career.utilities}、生活费 ${career.livingCost}。目前还有 ${career.arrears ?? 0} 的欠款。`,
+      choices: [
+        { label: "减少非必要消费，留出应急金", effects: { money: 3, mood: -2, study: 1 }, result: "预算变得不那么舒服，却更能抵抗下个月的意外。" },
+        { label: "维持当前生活质量，不再额外压缩", effects: { mood: 3 }, result: "你保住了生活感，也接受存款增长会更慢。" }
+      ]
+    },
+    operate: {
+      icon: "🧰", title: `${career.name}的日常交付`, story: `这个月的订单挤在一起，一位老客户又临时修改需求。`,
+      choices: [
+        { label: "重新排期，保证已经承诺的质量", effects: { study: 3, social: 3, money: 3 }, result: "客户多等了一点时间，但最终愿意继续合作。" },
+        { label: "加班全部接下，先保住现金收入", effects: { money: 7, health: -5, mood: -2 }, result: "钱到账了，连续赶工也让身体明显透支。" }
+      ]
+    },
+    customers: {
+      icon: "📣", title: "第一批真正会付钱的客户", story: `有人对${career.name}感兴趣，但希望先低价试一次。`,
+      choices: [
+        { label: "接受小单，用结果换口碑", effects: { social: 5, money: 2, study: 2 }, result: "利润不高，但客户留下了一条真实评价。" },
+        { label: "守住价格，只接能覆盖成本的订单", effects: { money: 4, social: -1, mood: 1 }, result: "你失去了一笔小单，却没有让忙碌变成亏损。" }
+      ]
+    },
+    product: {
+      icon: "🧪", title: "产品需要重新打磨", story: `几位客户指出了同一个问题。改进需要投入资金，也可能减少以后返工。`,
+      choices: [
+        { label: "花钱改进最关键的环节", effects: { study: 5, money: -5, mood: -1 }, result: "短期现金变少了，交付却开始稳定下来。" },
+        { label: "先做低成本修补，观察下个月", effects: { study: 2, money: -1 }, result: "问题暂时可控，但没有彻底消失。" }
+      ]
+    },
+    cashflow: {
+      icon: "📊", title: "账上收入不等于真正利润", story: `你把${career.name}的流水、成本和未收款重新列了一遍，发现忙碌并不一定意味着赚钱。`,
+      choices: [
+        { label: "停止一项低利润业务", effects: { study: 3, money: 4, mood: -1 }, result: "订单少了一些，现金流反而变得清楚。" },
+        { label: "催收已经到期的款项", effects: { money: 6, social: -2 }, result: "一部分款项终于到账，合作关系也变得更现实。" }
+      ]
+    },
+    expand: {
+      icon: "🚀", title: `${career.name}是否该扩张`, story: "现有业务开始稳定，有人建议租更大的地方或招一名帮手。扩张会提高上限，也会把固定成本锁得更高。",
+      choices: [
+        { label: "小规模扩张，只增加必要投入", effects: { money: -8, social: 3, study: 2 }, special: { type: "expandCareer" }, result: "你增加了一部分产能，下个月的收入和固定成本都会提高。" },
+        { label: "暂不扩张，先积累三个月现金", effects: { money: 3, mood: 2 }, result: "你放弃了速度，换来更厚一点的安全垫。" }
+      ]
+    }
+  };
+  if (action.id === "family") return createWorkFamilyScene();
+  if (action.id === "rest") return createWorkRestScene();
+  const scene = sceneMap[action.id] ?? (isBusiness ? sceneMap.operate : sceneMap.work);
+  return { id: createId(), ...scene };
 }
 
 function createWorkFamilyScene() {

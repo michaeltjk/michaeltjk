@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN" translate="no" class="notranslate">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Language" content="zh-CN">
+  <meta name="google" content="notranslate">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#171713">
+  <title>十三岁以后｜人生模拟器</title>
+  <meta name="description" content="《十三岁以后》是一款从初中开始的中文人生模拟器。随机家庭背景，在学业、友情、健康、金钱与人生路线之间做出选择。">
+  <link rel="stylesheet" href="assets/css/styles.css?v=0.6.3">
+</head>
+<body>
+  <main id="setupScreen" class="setup-screen">
+    <section class="intro-card">
+      <p class="eyebrow">LIFE BEGINS AT THIRTEEN</p>
+      <h1>十三岁以后</h1>
+      <p class="lead">你无法选择出生，但可以选择接下来怎么走。</p>
+
+      <section class="game-introduction" aria-labelledby="gameIntroTitle">
+        <div class="intro-heading">
+          <div>
+            <p class="eyebrow">ABOUT THE GAME</p>
+            <h2 id="gameIntroTitle">这是一场怎样的人生？</h2>
+          </div>
+          <span class="intro-badge">自动存档</span>
+        </div>
+        <p class="intro-summary">你将从十三岁的初一开始，在有限的月份里分配时间。每个选择都会改变属性、关系与未来路线，条件不足时，一些机会也会与你擦肩而过。</p>
+        <div class="intro-features">
+          <div><span>🎭</span><strong>随机出身</strong><small>家庭、城市、性格与天赋各不相同</small></div>
+          <div><span>🧭</span><strong>多条路线</strong><small>中考高考、国际课程或提前进入社会</small></div>
+          <div><span>🌿</span><strong>连续剧情</strong><small>朋友、项目和选择会在未来再次出现</small></div>
+          <div><span>⚖️</span><strong>合理取舍</strong><small>兼顾学业、健康、心情、关系和金钱</small></div>
+        </div>
+        <p class="intro-tip"><strong>怎么玩：</strong>每个月选择一项主要行动，处理随之发生的事件，并承担选择带来的长期后果。</p>
+      </section>
+
+      <section class="identity-picker" aria-label="选择人物身份">
+        <span>先选择这段人生的身份</span>
+        <div class="identity-options">
+          <button class="identity-button" data-identity="boy" type="button">👦 男生</button>
+          <button class="identity-button" data-identity="girl" type="button">👧 女生</button>
+          <button class="identity-button active" data-identity="random" type="button">🎭 随机</button>
+        </div>
+      </section>
+
+      <div id="originCard" class="origin-card"></div>
+
+      <div class="setup-actions">
+        <button id="rerollButton" class="button ghost" type="button">🎲 换一个背景</button>
+        <button id="startButton" class="button primary" type="button">开始这段人生 →</button>
+      </div>
+    </section>
+  </main>
+
+  <main id="gameScreen" class="game-screen hidden">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">THIRTEEN AND BEYOND</p>
+        <h2>十三岁以后</h2>
+      </div>
+      <div class="topbar-actions">
+        <span id="saveStatus">已自动保存</span>
+        <button id="restartButton" class="icon-button" type="button" title="重新开始">↻</button>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <aside class="profile-panel panel">
+        <div class="avatar" id="avatar">林</div>
+        <div class="profile-copy">
+          <p id="lifeStage" class="stage-label">初一 · 九月</p>
+          <h1 id="characterName">林知夏</h1>
+          <p id="characterLine" class="muted"></p>
+        </div>
+        <div id="backgroundTags" class="tag-list"></div>
+        <div class="family-box">
+          <span>家庭情况</span>
+          <strong id="familySummary"></strong>
+        </div>
+      </aside>
+
+      <section class="play-area">
+        <div id="statsGrid" class="stats-grid panel"></div>
+
+        <section class="action-panel panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">THIS MONTH</p>
+              <h2>这个月，你把时间花在哪里？</h2>
+            </div>
+            <span id="monthHint" class="month-hint">选择一项行动推进时间</span>
+          </div>
+          <div id="actionGrid" class="action-grid"></div>
+        </section>
+      </section>
+
+      <aside class="memory-panel panel">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">MEMORIES</p>
+            <h2>人生记录</h2>
+          </div>
+          <span id="turnCount" class="turn-count">0 个月</span>
+        </div>
+        <ol id="memoryList" class="memory-list"></ol>
+      </aside>
+    </section>
+  </main>
+
+  <section id="eventModal" class="event-modal hidden" aria-modal="true" role="dialog">
+    <article class="event-card">
+      <span id="eventIcon" class="event-icon">✦</span>
+      <p class="eyebrow">LIFE EVENT</p>
+      <h2 id="eventTitle"></h2>
+      <p id="eventStory" class="event-story"></p>
+      <div id="eventOutcome" class="event-outcome hidden"></div>
+      <div id="eventChoices" class="event-choices"></div>
+    </article>
+  </section>
+
+  <script src="assets/js/app.js?v=0.6.3"></script>
+</body>
+</html>
+

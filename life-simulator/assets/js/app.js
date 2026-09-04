@@ -174,7 +174,7 @@ const JOB_ACTIONS = [
 ];
 
 const BUSINESS_ACTIONS = [
-  { id: "operate", icon: "🧮", name: "盯紧日常经营", note: "控制成本、交付和现金流", color: "#ffe6ce", effects: { study: 3, money: 4, health: -2, mood: 1 } },
+  { id: "operate", icon: "🧮", name: "盯紧日常经营", note: "本月经营回款另行结算", color: "#ffe6ce", effects: { study: 3, money: 10, health: -2, mood: 1 } },
   { id: "customers", icon: "📣", name: "寻找客户", note: "推广、谈单和维护口碑", color: "#ffe0e8", effects: { social: 6, money: -2, mood: 1 } },
   { id: "product", icon: "🛠️", name: "改进产品服务", note: "用时间换长期竞争力", color: "#dce8ff", effects: { study: 5, money: -3, health: -1 } },
   { id: "cashflow", icon: "💹", name: "管理现金流", note: "核对收入、成本和欠款", color: "#fff0bd", effects: { study: 2, mood: 1 } },
@@ -371,7 +371,7 @@ function generateOrigin(identityChoice) {
 
 function startLife() {
   state = {
-    version: 10,
+    version: 11,
     character: pendingOrigin,
     stats: { ...pendingOrigin.stats },
     turn: 0,
@@ -560,6 +560,8 @@ function renderGame() {
       makeTag(`欠款 · ${state.career.arrears ?? 0}`),
       makeTag(`房产 · ${properties.length}套${properties.length ? ` · 市值${properties.reduce((sum, item) => sum + item.marketValue, 0)}` : ""}`),
       makeTag(`股票 · 市值${Math.round(stockValue)}`),
+      makeTag(`同事 · ${state.career.colleagues?.length ? state.career.colleagues.slice(0, 2).map((item) => item.name).join("、") : "尚未建立稳定关系"}`),
+      makeTag(`副业投资 · ${state.investments?.ventures?.length ?? 0}项`),
       makeTag(`上月被动收入 · ${state.investments?.lastPassiveIncome ?? 0}`)
     );
   }
@@ -663,6 +665,7 @@ function recordMoneyChange(amount, label) {
 function createEmptyInvestments() {
   return {
     properties: [],
+    ventures: [],
     stocks: {
       prices: Object.fromEntries(STOCK_PRODUCTS.map((product) => [product.id, product.basePrice])),
       holdings: Object.fromEntries(STOCK_PRODUCTS.map((product) => [product.id, 0])),
@@ -696,6 +699,13 @@ function applyInvestmentReturns() {
     const netRent = property.status === "rented" ? property.rentIncome - property.monthlyFee : -property.monthlyFee;
     passiveIncome += netRent;
   });
+  investments.ventures.forEach((venture) => {
+    venture.months = (venture.months ?? 0) + 1;
+    const income = randomBetween(-venture.risk, venture.baseIncome + venture.risk);
+    venture.lastIncome = income;
+    venture.totalIncome = (venture.totalIncome ?? 0) + income;
+    passiveIncome += income;
+  });
   if (stocks.marketMonth % 3 === 0) {
     passiveIncome += STOCK_PRODUCTS.reduce((sum, product) => {
       const units = stocks.holdings[product.id] ?? 0;
@@ -705,7 +715,7 @@ function applyInvestmentReturns() {
   investments.lastPassiveIncome = passiveIncome;
   if (passiveIncome) {
     applyToStats(state.stats, { money: passiveIncome });
-    recordMoneyChange(passiveIncome, passiveIncome > 0 ? "房租与股票分红收入" : "空置房产维护费");
+    recordMoneyChange(passiveIncome, passiveIncome > 0 ? "房租、分红与副业分成" : "投资维护与副业亏损");
   }
 }
 
@@ -761,9 +771,9 @@ function applyCareerEconomy(action) {
   if (!career || !isWorkingLife()) return null;
   career.months = (career.months ?? 0) + 1;
   applyInvestmentReturns();
-  const incomeSwing = career.path === "business" ? randomBetween(-7, 8) : randomBetween(-1, 2);
+  const incomeSwing = career.path === "business" ? randomBetween(-12, 15) : randomBetween(-1, 2);
   const actionBonus = career.path === "job" && action.id === "work" ? 2
-    : career.path === "business" && ["operate", "customers"].includes(action.id) ? 3 : 0;
+    : career.path === "business" && ["operate", "customers"].includes(action.id) ? 8 : 0;
   const income = Math.max(0, career.baseIncome + incomeSwing + actionBonus);
   const utilities = Math.max(1, career.utilities + randomBetween(-1, 2));
   const totalCost = career.rent + utilities + career.livingCost;
@@ -795,6 +805,7 @@ function createArrearsScene(shortfall) {
     { label: "向家人说明情况，暂时周转", effects: { money: Math.min(12, career.arrears), family: -4 }, special: { type: "payArrears", amount: Math.min(12, career.arrears) }, result: "家里帮你挡住了眼前的缺口，也要求你重新做一份能长期维持的预算。" },
     { label: "先记下欠款，下个月再处理", effects: { mood: -3 }, result: "账单没有消失，欠款会继续影响之后的选择。" }
   ];
+  if (career.path === "job") scenes.push(...createJobSocialScenes(career));
   if (career.location === "away") {
     choices.push({ label: "结束外地生活，搬回家降低开支", effects: { family: 3, mood: -2 }, special: { type: "moveCareerHome" }, result: "你退掉住处回到家乡。机会少了一些，但下个月不再承担外地房租。" });
   }
@@ -1005,7 +1016,7 @@ function loadGame() {
       saved.memories = saved.memories.map((memory) => memory.text === previousStory ? { ...memory, text: saved.character.story } : memory);
     }
     const previousVersion = saved.version ?? 1;
-    saved.version = 10;
+    saved.version = 11;
     saved.education ??= { route: "undecided", track: saved.turn < 30 ? "middle-school" : "academic", exitTurn: null };
     if (saved.education.track === "university" && !saved.education.admission) {
       const wasVocational = saved.memories.some((memory) => String(memory.stage ?? "").includes("中职"));
@@ -1031,6 +1042,7 @@ function loadGame() {
     saved.economy.lottery ??= { tickets: 0, spent: 0, won: 0, bestPrize: 0 };
     saved.investments ??= createEmptyInvestments();
     saved.investments.properties ??= [];
+    saved.investments.ventures ??= [];
     saved.investments.stocks ??= createEmptyInvestments().stocks;
     saved.investments.lastPassiveIncome ??= 0;
     const investmentDefaults = createEmptyInvestments().stocks;
@@ -1044,13 +1056,14 @@ function loadGame() {
       saved.investments.stocks.averageCosts[product.id] ??= 0;
     });
     saved.career ??= null;
-    if (saved.career && previousVersion < 10) {
+    if (saved.career) saved.career.colleagues ??= [];
+    if (saved.career && previousVersion < 11) {
       const educationBonus = ({ postgraduate: 7, elite: 5, overseas: 5, bachelor: 3, topup: 3, junior: 1 }[saved.education.admission?.level] ?? 0);
       const floor = saved.career.path === "business"
-        ? (saved.career.location === "away" ? 28 : 20)
+        ? (saved.career.location === "away" ? 42 : 32)
         : (saved.career.location === "away" ? 24 : 18) + educationBonus;
       saved.career.baseIncome = Math.max(saved.career.baseIncome ?? 0, floor);
-      saved.career.economicModel = 2;
+      saved.career.economicModel = 3;
     }
     saved.balance ??= { lastActionId: null, repeatCount: 0, statBands: createStatBands(saved.stats) };
     saved.balance.statBands ??= createStatBands(saved.stats);
@@ -1476,6 +1489,102 @@ function createSchoolExtraScene() {
     });
   }
   return { id: createId(), ...pick(scenes) };
+}
+
+function generateColleague() {
+  const identity = pick(["boy", "girl"]);
+  return {
+    id: createId(),
+    name: `${pick(BACKGROUND_DATA.surnames)}${pick(identity === "girl" ? BACKGROUND_DATA.girlNames : BACKGROUND_DATA.boyNames)}`,
+    role: pick(["同组同事", "资深同事", "项目搭档", "隔壁组同事"]),
+    trait: pick(["做事仔细但说话直接", "消息灵通但很看重回报", "平时安静，关键时刻愿意帮忙", "能力不错，也有很强的个人打算"]),
+    closeness: 35
+  };
+}
+
+function ensureCareerColleague() {
+  state.career.colleagues ??= [];
+  if (!state.career.colleagues.length) state.career.colleagues.push(generateColleague());
+  return pick(state.career.colleagues);
+}
+
+function createJobSocialScenes(career) {
+  const colleague = ensureCareerColleague();
+  const social = state.stats.social;
+  const common = [{
+    icon: "🗣️", title: "办公室里出现两种说法",
+    story: `项目延期后，两个小组互相认为责任在对方。${colleague.name}提醒你，主管很快会分别找人了解情况。`,
+    choices: [
+      { label: "只说明自己确认过的事实", effects: { social: 3, study: 2, mood: -1 }, special: { type: "adjustColleague", colleagueId: colleague.id, amount: 3 }, result: "你没有替任何一边编故事，也让主管看见了完整的时间线。" },
+      { label: `先和${colleague.name}统一说法`, effects: { social: 2, mood: -2 }, special: { type: "adjustColleague", colleagueId: colleague.id, amount: 5 }, result: "你们暂时站到了一边，但这份默契也带上了职场立场。" }
+    ]
+  }];
+  if (social <= 35) {
+    common.push(
+      {
+        icon: "🔕", title: "重要消息最后才传到你这里", story: "排班和项目安排已经在私下讨论过一轮，你直到正式通知前才知道，几乎没有调整空间。",
+        choices: [
+          { label: `主动问${colleague.name}以后能否同步消息`, effects: { social: 5, mood: -2 }, special: { type: "adjustColleague", colleagueId: colleague.id, amount: 6 }, result: "对方答应提醒你，也直白地说：平时不来往，大家很容易忘记你。" },
+          { label: "直接要求主管建立公开通知规则", effects: { study: 2, social: -2, mood: 1 }, result: "流程变得更透明，一些同事却觉得你把小事上升成了制度问题。" }
+        ]
+      },
+      {
+        icon: "⚠️", title: "一次失误被推到了你身上", story: `交付出错后，有人说“最后是你经手的”。你手里有部分记录，却缺少愿意当场替你说明的同事。`,
+        choices: [
+          { label: "整理记录，逐项还原责任边界", effects: { study: 4, social: 1, mood: -3 }, result: "你证明问题不全由自己造成，也意识到只埋头做事不足以保护自己。" },
+          { label: "先承担补救，再私下解释", effects: { social: 2, health: -3, mood: -2 }, result: "项目被救回来了，责任归属却只得到模糊修正。" }
+        ]
+      }
+    );
+  } else if (social >= 65) {
+    common.push(
+      {
+        icon: "🌟", title: "关键项目点名要你加入", story: `跨部门负责人通过${colleague.name}听说了你的表现，邀请你加入一个能接触核心业务的短期项目。`,
+        choices: [
+          { label: "加入项目，承担一块明确成果", effects: { study: 4, social: 4, health: -2, mood: 1 }, result: "工作量增加了，但你的名字第一次出现在更高层级的成果里。" },
+          { label: "先问清时间和绩效归属", effects: { study: 2, social: 2, mood: 2 }, result: "你没有只被机会两个字打动，而是争取到更明确的责任和评价。" }
+        ]
+      },
+      createCoworkerVentureScene(colleague, career)
+    );
+  } else {
+    common.push({
+      icon: "🔄", title: `${colleague.name}准备离职`, story: `${colleague.name}私下告诉你已经拿到新机会，并问你愿不愿意接手一部分工作资料和行业联系人。`,
+      choices: [
+        { label: "认真完成交接，也维持离职后的联系", effects: { study: 3, social: 4, health: -1 }, special: { type: "adjustColleague", colleagueId: colleague.id, amount: 5 }, result: "你接住了工作，也留下了一条不依附于当前公司的关系。" },
+        { label: "只接必要工作，不额外承担人情", effects: { study: 2, mood: 2 }, result: "交接按流程完成，你没有把别人的离职全部变成自己的负担。" }
+      ]
+    });
+  }
+  return common;
+}
+
+function createCoworkerVentureScene(colleague, career) {
+  const background = CAREER_BACKGROUND[state.character.family.id] ?? CAREER_BACKGROUND["dual-income"];
+  const venture = {
+    id: createId(), name: `${colleague.name}的${background.business}`, partner: colleague.name,
+    capital: 20, baseIncome: 3, risk: 3, months: 0, totalIncome: 0, lastIncome: 0, active: true
+  };
+  return {
+    icon: "🤝", title: `${colleague.name}私下问你要不要一起做项目`,
+    story: `${colleague.name}说自己准备做“${venture.name}”，希望你出资金或直接成为合伙人。对方有一份初步计划，但客户、回款和分工都还没有被验证。`,
+    choices: [
+      { label: "先看客户、成本和分工，不当场答应", effects: { study: 2, social: 2 }, followUp: createVentureTermsScene(colleague, career, venture), result: "你没有被熟人和创业两个词催着转账，而是要求把数字和责任写清楚。" },
+      { label: "明确拒绝，只维持同事关系", effects: { mood: 2, social: -1 }, special: { type: "adjustColleague", colleagueId: colleague.id, amount: -2 }, result: "对方有些失望，但你保住了工资、现金和关系边界。" }
+    ]
+  };
+}
+
+function createVentureTermsScene(colleague, career, venture) {
+  return {
+    id: createId(), icon: "📑", title: `${venture.name}的合伙条件`,
+    story: `计划写明：小额入股需要 20，每月分成会在亏损 -${venture.risk} 到盈利 ${venture.baseIncome + venture.risk} 之间波动；全职合伙需要投入 35，并放弃当前稳定工资。`,
+    choices: [
+      { label: "投入20，保留工作并作为小股东", requires: { money: 20 }, effects: { money: -20, social: 2 }, special: { type: "addVenture", venture }, result: `你成为小股东。项目每月可能分成，也可能继续亏损；${colleague.name}负责日常经营。` },
+      { label: "投入35并辞职，成为全职合伙人", requires: { money: 35, social: 60 }, effects: { money: -35, mood: 3, health: -2 }, special: { type: "switchCareerToBusiness", venture }, result: `你离开${career.employer}，与${colleague.name}共同经营${venture.name}。稳定工资从此被经营收入取代。` },
+      { label: "看完方案后拒绝，不投入", effects: { study: 2, mood: 1 }, special: { type: "adjustColleague", colleagueId: colleague.id, amount: -1 }, result: "你认可对方做了准备，但风险仍超过自己能承担的范围。" }
+    ]
+  };
 }
 
 function createFriendTrustFollowUp(friend) {
@@ -2194,7 +2303,7 @@ function buildCareerProfile(path, location) {
       housing: away ? "与人合租" : "与家人同住",
       baseIncome: (away ? 24 : 18) + educationBonus,
       rent: away ? 8 : 0, utilities: away ? 3 : 2, livingCost: away ? 6 : 4,
-      arrears: 0, months: 0, startedTurn: state.turn, economicModel: 2
+      arrears: 0, months: 0, colleagues: [], startedTurn: state.turn, economicModel: 2
     };
   }
   return {
@@ -2202,9 +2311,9 @@ function buildCareerProfile(path, location) {
     name: background.business,
     title: "经营者", employer: background.business,
     housing: away ? "与人合租并租用共享工位" : "住在家中并从低成本场地起步",
-    baseIncome: away ? 28 : 20,
+    baseIncome: away ? 42 : 32,
     rent: away ? 9 : 2, utilities: away ? 4 : 3, livingCost: away ? 6 : 4,
-    arrears: 0, months: 0, startedTurn: state.turn, economicModel: 2
+    arrears: 0, months: 0, colleagues: [], startedTurn: state.turn, economicModel: 3
   };
 }
 
@@ -2380,6 +2489,26 @@ function applySpecialChoice(special) {
       stocks.holdings[special.stockId] = Math.max(0, currentUnits - special.units);
       if (stocks.holdings[special.stockId] === 0) stocks.averageCosts[special.stockId] = 0;
     }
+  }
+  if (special.type === "adjustColleague" && state.career) {
+    const colleague = state.career.colleagues?.find((item) => item.id === special.colleagueId);
+    if (colleague) colleague.closeness = Math.max(0, Math.min(100, colleague.closeness + special.amount));
+  }
+  if (special.type === "addVenture") {
+    state.investments.ventures ??= [];
+    if (!state.investments.ventures.some((venture) => venture.id === special.venture.id)) {
+      state.investments.ventures.push({ ...special.venture });
+    }
+  }
+  if (special.type === "switchCareerToBusiness" && state.career) {
+    state.career.path = "business";
+    state.career.name = special.venture.name;
+    state.career.title = "合伙经营者";
+    state.career.employer = special.venture.name;
+    state.career.baseIncome = state.career.location === "away" ? 42 : 32;
+    state.career.economicModel = 3;
+    state.career.businessPartner = special.venture.partner;
+    state.career.months = 0;
   }
   if (special.type === "setRoute") {
     state.education.route = special.route;
@@ -2606,8 +2735,8 @@ function createCareerActionScene(action) {
     operate: {
       icon: "🧰", title: `${career.name}的日常交付`, story: `这个月的订单挤在一起，一位老客户又临时修改需求。`,
       choices: [
-        { label: "重新排期，保证已经承诺的质量", effects: { study: 3, social: 3, money: 3 }, result: "客户多等了一点时间，但最终愿意继续合作。" },
-        { label: "加班全部接下，先保住现金收入", effects: { money: 7, health: -5, mood: -2 }, result: "钱到账了，连续赶工也让身体明显透支。" }
+        { label: "重新排期，保证已经承诺的质量", effects: { study: 3, social: 3, money: 8 }, result: "客户多等了一点时间，但尾款顺利到账，也愿意继续合作。" },
+        { label: "加班全部接下，先保住现金收入", effects: { money: 15, health: -5, mood: -2 }, result: "一批订单集中回款，连续赶工也让身体明显透支。" }
       ]
     },
     customers: {

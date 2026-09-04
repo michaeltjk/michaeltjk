@@ -161,7 +161,7 @@ const WORK_ACTIONS = [
 ];
 
 const JOB_ACTIONS = [
-  { id: "work", icon: "💼", name: "做好本职工作", note: "争取绩效、经验和稳定收入", color: "#ffe6ce", effects: { study: 2, social: 2, mood: 1, money: 3 } },
+  { id: "work", icon: "💼", name: "做好本职工作", note: "本月工资统一结算，认真工作提高绩效", color: "#ffe6ce", effects: { study: 2, social: 2, mood: 1 }, incomeBonus: 2 },
   { id: "skill", icon: "🛠️", name: "提升职业技能", note: "为加薪或下一份工作做准备", color: "#dce8ff", effects: { study: 5, money: -2, health: -1 } },
   { id: "network", icon: "🤝", name: "经营职场关系", note: "同事、前辈和行业联系人", color: "#ffe0e8", effects: { social: 6, money: -2, mood: 1 } },
   { id: "job-search", icon: "📄", name: "寻找更好岗位", note: "更新简历并参加面试", color: "#daf2df", effects: { study: 3, social: 3, mood: -2 } },
@@ -174,8 +174,8 @@ const JOB_ACTIONS = [
 ];
 
 const BUSINESS_ACTIONS = [
-  { id: "operate", icon: "🧮", name: "盯紧日常经营", note: "本月经营回款另行结算", color: "#ffe6ce", effects: { study: 3, money: 10, health: -2, mood: 1 } },
-  { id: "customers", icon: "📣", name: "寻找客户", note: "推广、谈单和维护口碑", color: "#ffe0e8", effects: { social: 6, money: -2, mood: 1 } },
+  { id: "operate", icon: "🧮", name: "盯紧日常经营", note: "营业额统一月结，专注经营提高回款", color: "#ffe6ce", effects: { study: 3, health: -2, mood: 1 }, incomeBonus: 6 },
+  { id: "customers", icon: "📣", name: "寻找客户", note: "投入推广费，可能提高当月营业额", color: "#ffe0e8", effects: { social: 6, money: -2, mood: 1 }, incomeBonus: 3 },
   { id: "product", icon: "🛠️", name: "改进产品服务", note: "用时间换长期竞争力", color: "#dce8ff", effects: { study: 5, money: -3, health: -1 } },
   { id: "cashflow", icon: "💹", name: "管理现金流", note: "核对收入、成本和欠款", color: "#fff0bd", effects: { study: 2, mood: 1 } },
   { id: "assets", icon: "🏘️", name: "管理投资资产", note: "房产出租、卖出或买卖股票", color: "#e4f2d2", effects: { mood: 1 } },
@@ -371,7 +371,7 @@ function generateOrigin(identityChoice) {
 
 function startLife() {
   state = {
-    version: 11,
+    version: 12,
     character: pendingOrigin,
     stats: { ...pendingOrigin.stats },
     turn: 0,
@@ -771,9 +771,8 @@ function applyCareerEconomy(action) {
   if (!career || !isWorkingLife()) return null;
   career.months = (career.months ?? 0) + 1;
   applyInvestmentReturns();
-  const incomeSwing = career.path === "business" ? randomBetween(-12, 15) : randomBetween(-1, 2);
-  const actionBonus = career.path === "job" && action.id === "work" ? 2
-    : career.path === "business" && ["operate", "customers"].includes(action.id) ? 8 : 0;
+  const incomeSwing = career.path === "business" ? randomBetween(-14, 12) : randomBetween(-1, 2);
+  const actionBonus = action.incomeBonus ?? 0;
   const income = Math.max(0, career.baseIncome + incomeSwing + actionBonus);
   const utilities = Math.max(1, career.utilities + randomBetween(-1, 2));
   const totalCost = career.rent + utilities + career.livingCost;
@@ -1016,7 +1015,7 @@ function loadGame() {
       saved.memories = saved.memories.map((memory) => memory.text === previousStory ? { ...memory, text: saved.character.story } : memory);
     }
     const previousVersion = saved.version ?? 1;
-    saved.version = 11;
+    saved.version = 12;
     saved.education ??= { route: "undecided", track: saved.turn < 30 ? "middle-school" : "academic", exitTurn: null };
     if (saved.education.track === "university" && !saved.education.admission) {
       const wasVocational = saved.memories.some((memory) => String(memory.stage ?? "").includes("中职"));
@@ -1057,13 +1056,15 @@ function loadGame() {
     });
     saved.career ??= null;
     if (saved.career) saved.career.colleagues ??= [];
-    if (saved.career && previousVersion < 11) {
+    if (saved.career && previousVersion < 12) {
       const educationBonus = ({ postgraduate: 7, elite: 5, overseas: 5, bachelor: 3, topup: 3, junior: 1 }[saved.education.admission?.level] ?? 0);
       const floor = saved.career.path === "business"
-        ? (saved.career.location === "away" ? 42 : 32)
+        ? (saved.career.location === "away" ? 35 : 26)
         : (saved.career.location === "away" ? 24 : 18) + educationBonus;
-      saved.career.baseIncome = Math.max(saved.career.baseIncome ?? 0, floor);
-      saved.career.economicModel = 3;
+      saved.career.baseIncome = saved.career.path === "business"
+        ? floor
+        : Math.max(saved.career.baseIncome ?? 0, floor);
+      saved.career.economicModel = 4;
     }
     saved.balance ??= { lastActionId: null, repeatCount: 0, statBands: createStatBands(saved.stats) };
     saved.balance.statBands ??= createStatBands(saved.stats);
@@ -2311,9 +2312,9 @@ function buildCareerProfile(path, location) {
     name: background.business,
     title: "经营者", employer: background.business,
     housing: away ? "与人合租并租用共享工位" : "住在家中并从低成本场地起步",
-    baseIncome: away ? 42 : 32,
+    baseIncome: away ? 35 : 26,
     rent: away ? 9 : 2, utilities: away ? 4 : 3, livingCost: away ? 6 : 4,
-    arrears: 0, months: 0, colleagues: [], startedTurn: state.turn, economicModel: 3
+    arrears: 0, months: 0, colleagues: [], startedTurn: state.turn, economicModel: 4
   };
 }
 
@@ -2505,8 +2506,8 @@ function applySpecialChoice(special) {
     state.career.name = special.venture.name;
     state.career.title = "合伙经营者";
     state.career.employer = special.venture.name;
-    state.career.baseIncome = state.career.location === "away" ? 42 : 32;
-    state.career.economicModel = 3;
+    state.career.baseIncome = state.career.location === "away" ? 35 : 26;
+    state.career.economicModel = 4;
     state.career.businessPartner = special.venture.partner;
     state.career.months = 0;
   }
@@ -2735,8 +2736,8 @@ function createCareerActionScene(action) {
     operate: {
       icon: "🧰", title: `${career.name}的日常交付`, story: `这个月的订单挤在一起，一位老客户又临时修改需求。`,
       choices: [
-        { label: "重新排期，保证已经承诺的质量", effects: { study: 3, social: 3, money: 8 }, result: "客户多等了一点时间，但尾款顺利到账，也愿意继续合作。" },
-        { label: "加班全部接下，先保住现金收入", effects: { money: 15, health: -5, mood: -2 }, result: "一批订单集中回款，连续赶工也让身体明显透支。" }
+        { label: "重新排期，保证已经承诺的质量", effects: { study: 3, social: 3, money: 4 }, result: "客户多等了一点时间，一笔小额尾款顺利到账，也愿意继续合作。" },
+        { label: "加班全部接下，先保住现金收入", effects: { money: 8, health: -5, mood: -2 }, result: "一批加急订单带来额外回款，连续赶工也让身体明显透支。" }
       ]
     },
     customers: {

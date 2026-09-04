@@ -136,7 +136,7 @@ h1, h2, p { margin-top: 0; }
   .memory-list { height: auto; display: grid; grid-template-columns: repeat(3, 1fr); }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 720px), (max-device-width: 720px) {
   html, body { width: 100%; overflow-x: clip; }
   .setup-screen { min-width: 0; display: block; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); }
   .intro-card { width: 100%; max-width: 100%; min-width: 0; margin: 0 auto; overflow: hidden; padding: 22px 16px; border-radius: 24px; }
@@ -215,7 +215,7 @@ h1, h2, p { margin-top: 0; }
   .choice-button { min-height: 46px; padding: 11px 12px; font-size: 13px; line-height: 1.4; }
 }
 
-@media (max-width: 350px) {
+@media (max-width: 350px), (max-device-width: 350px) {
   .action-grid { grid-template-columns: 1fr; grid-auto-rows: minmax(66px, auto); }
   .action-card { grid-template-columns: 32px minmax(0, 1fr) auto; grid-template-rows: auto; }
   .action-cost { max-width: 92px; grid-column: auto; text-align: right; }

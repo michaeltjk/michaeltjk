@@ -24,7 +24,8 @@ const ACTION_CARE = {
   course: ["study"], club: ["social", "mood"], parttime: ["money"],
   internship: ["study", "social"], future: ["study"], certificate: ["study"],
   operate: ["study", "money"], customers: ["social", "money"], product: ["study"],
-  cashflow: ["study", "money"], expand: ["social", "money"]
+  cashflow: ["study", "money"], expand: ["social", "money"],
+  leisure: ["health", "mood"], assets: ["money", "mood"]
 };
 
 const BACKGROUND_DATA = {
@@ -160,21 +161,25 @@ const WORK_ACTIONS = [
 ];
 
 const JOB_ACTIONS = [
-  { id: "work", icon: "💼", name: "做好本职工作", note: "争取绩效、经验和稳定收入", color: "#ffe6ce", effects: { study: 2, social: 2, mood: -1, money: 3 } },
+  { id: "work", icon: "💼", name: "做好本职工作", note: "争取绩效、经验和稳定收入", color: "#ffe6ce", effects: { study: 2, social: 2, mood: 1, money: 3 } },
   { id: "skill", icon: "🛠️", name: "提升职业技能", note: "为加薪或下一份工作做准备", color: "#dce8ff", effects: { study: 5, money: -2, health: -1 } },
   { id: "network", icon: "🤝", name: "经营职场关系", note: "同事、前辈和行业联系人", color: "#ffe0e8", effects: { social: 6, money: -2, mood: 1 } },
   { id: "job-search", icon: "📄", name: "寻找更好岗位", note: "更新简历并参加面试", color: "#daf2df", effects: { study: 3, social: 3, mood: -2 } },
   { id: "finances", icon: "🧾", name: "管理收支", note: "核对工资、房租和日常预算", color: "#fff0bd", effects: { mood: 1 } },
+  { id: "assets", icon: "🏘️", name: "管理投资资产", note: "房产出租、卖出或买卖股票", color: "#e4f2d2", effects: { mood: 1 } },
+  { id: "leisure", icon: "🎬", name: "享受生活", note: "花一点钱换休息、兴趣和好心情", color: "#eee2ff", effects: { mood: 7, health: 2, money: -4 } },
   { id: "family", icon: "🏠", name: "维系家庭", note: "在工作之外保留家人关系", color: "#eee2ff", effects: { family: 7, mood: 2, money: -3 } },
   { id: "rest", icon: "🌙", name: "休息恢复", note: "避免工作和通勤耗尽身体", color: "#dceced", effects: { health: 6, mood: 4 } },
   { id: "luck", icon: "🎲", name: "试试运气", note: "随机机会不等于稳定收入", color: "#ffe1c7", effects: { mood: 1 } }
 ];
 
 const BUSINESS_ACTIONS = [
-  { id: "operate", icon: "🧮", name: "盯紧日常经营", note: "控制成本、交付和现金流", color: "#ffe6ce", effects: { study: 3, money: 4, health: -2, mood: -1 } },
-  { id: "customers", icon: "📣", name: "寻找客户", note: "推广、谈单和维护口碑", color: "#ffe0e8", effects: { social: 6, money: -2, mood: -1 } },
+  { id: "operate", icon: "🧮", name: "盯紧日常经营", note: "控制成本、交付和现金流", color: "#ffe6ce", effects: { study: 3, money: 4, health: -2, mood: 1 } },
+  { id: "customers", icon: "📣", name: "寻找客户", note: "推广、谈单和维护口碑", color: "#ffe0e8", effects: { social: 6, money: -2, mood: 1 } },
   { id: "product", icon: "🛠️", name: "改进产品服务", note: "用时间换长期竞争力", color: "#dce8ff", effects: { study: 5, money: -3, health: -1 } },
-  { id: "cashflow", icon: "💹", name: "管理现金流", note: "核对收入、成本和欠款", color: "#fff0bd", effects: { study: 2, mood: -1 } },
+  { id: "cashflow", icon: "💹", name: "管理现金流", note: "核对收入、成本和欠款", color: "#fff0bd", effects: { study: 2, mood: 1 } },
+  { id: "assets", icon: "🏘️", name: "管理投资资产", note: "房产出租、卖出或买卖股票", color: "#e4f2d2", effects: { mood: 1 } },
+  { id: "leisure", icon: "🎬", name: "享受生活", note: "暂时离开经营，恢复生活感", color: "#eee2ff", effects: { mood: 7, health: 2, money: -4 } },
   { id: "expand", icon: "🚀", name: "尝试扩大经营", note: "高投入也可能带来更高回报", color: "#daf2df", effects: { social: 3, money: -8, health: -2 }, requiresBusinessMonths: 10 },
   { id: "family", icon: "🏠", name: "处理家庭关系", note: "家人的支持也有边界和代价", color: "#eee2ff", effects: { family: 7, mood: 2 } },
   { id: "rest", icon: "🌙", name: "停下来休息", note: "经营者也不是无限运转的机器", color: "#dceced", effects: { health: 6, mood: 4, money: -1 } },
@@ -189,6 +194,18 @@ const CAREER_BACKGROUND = {
   "migrant-worker": { business: "技能维修与上门服务", homeJob: "城郊制造企业技术岗", support: "家人能介绍实际工作，却难以承担大的创业损失" },
   affluent: { business: "品牌与数字服务创业项目", homeJob: "家族熟悉企业的管理培训岗", support: "家庭能提供更高启动资金，也会介入经营决策" }
 };
+
+const PROPERTY_TYPES = [
+  { id: "old-flat", name: "城郊老小区单间", price: 90, rentIncome: 5, monthlyFee: 1, icon: "🏚️" },
+  { id: "small-flat", name: "小户型住宅", price: 160, rentIncome: 9, monthlyFee: 2, icon: "🏠" },
+  { id: "street-shop", name: "社区临街小铺", price: 260, rentIncome: 15, monthlyFee: 3, icon: "🏪" }
+];
+
+const STOCK_PRODUCTS = [
+  { id: "index", name: "宽基指数", basePrice: 10, volatility: 0.08, dividend: 0.08, icon: "📊" },
+  { id: "growth", name: "成长科技", basePrice: 14, volatility: 0.2, dividend: 0, icon: "🚀" },
+  { id: "dividend", name: "红利组合", basePrice: 8, volatility: 0.05, dividend: 0.18, icon: "💵" }
+];
 
 const COLLEGE_DATA = {
   elite: {
@@ -354,7 +371,7 @@ function generateOrigin(identityChoice) {
 
 function startLife() {
   state = {
-    version: 9,
+    version: 10,
     character: pendingOrigin,
     stats: { ...pendingOrigin.stats },
     turn: 0,
@@ -362,6 +379,7 @@ function startLife() {
     friends: [],
     projects: [],
     economy: { savingsGoal: null, ledger: [], chanceHistory: [], lottery: { tickets: 0, spent: 0, won: 0, bestPrize: 0 } },
+    investments: createEmptyInvestments(),
     career: null,
     balance: { lastActionId: null, repeatCount: 0, statBands: createStatBands(pendingOrigin.stats) },
     memories: [{ id: createId(), stage: "初一 · 九月", text: pendingOrigin.story, color: "#d9ff68" }],
@@ -533,11 +551,16 @@ function renderGame() {
       : "最近手气 · 尚未尝试")
   ];
   if (state.career) {
+    const properties = state.investments?.properties ?? [];
+    const stockValue = getStockMarketValue();
     backgroundTags.splice(5, 0,
       makeTag(`去向 · ${state.career.path === "business" ? "创业" : "找工作"} · ${state.career.locationLabel}`),
       makeTag(`住房 · ${state.career.housing}`),
       makeTag(`固定开支 · 房租${state.career.rent} + 水电${state.career.utilities} + 生活${state.career.livingCost}`),
-      makeTag(`欠款 · ${state.career.arrears ?? 0}`)
+      makeTag(`欠款 · ${state.career.arrears ?? 0}`),
+      makeTag(`房产 · ${properties.length}套${properties.length ? ` · 市值${properties.reduce((sum, item) => sum + item.marketValue, 0)}` : ""}`),
+      makeTag(`股票 · 市值${Math.round(stockValue)}`),
+      makeTag(`上月被动收入 · ${state.investments?.lastPassiveIncome ?? 0}`)
     );
   }
   document.querySelector("#backgroundTags").replaceChildren(...backgroundTags);
@@ -637,6 +660,55 @@ function recordMoneyChange(amount, label) {
   state.economy.ledger = state.economy.ledger.slice(0, 30);
 }
 
+function createEmptyInvestments() {
+  return {
+    properties: [],
+    stocks: {
+      prices: Object.fromEntries(STOCK_PRODUCTS.map((product) => [product.id, product.basePrice])),
+      holdings: Object.fromEntries(STOCK_PRODUCTS.map((product) => [product.id, 0])),
+      averageCosts: Object.fromEntries(STOCK_PRODUCTS.map((product) => [product.id, 0])),
+      marketMonth: 0
+    },
+    lastPassiveIncome: 0
+  };
+}
+
+function getStockMarketValue() {
+  const stocks = state.investments?.stocks;
+  if (!stocks) return 0;
+  return STOCK_PRODUCTS.reduce((sum, product) => sum + (stocks.holdings[product.id] ?? 0) * (stocks.prices[product.id] ?? product.basePrice), 0);
+}
+
+function applyInvestmentReturns() {
+  const investments = state.investments ??= createEmptyInvestments();
+  const stocks = investments.stocks;
+  stocks.marketMonth = (stocks.marketMonth ?? 0) + 1;
+  STOCK_PRODUCTS.forEach((product) => {
+    const current = stocks.prices[product.id] ?? product.basePrice;
+    const change = (Math.random() * 2 - 1) * product.volatility;
+    stocks.prices[product.id] = Math.max(2, Math.round(current * (1 + change) * 10) / 10);
+  });
+
+  let passiveIncome = 0;
+  investments.properties.forEach((property) => {
+    const marketChange = randomBetween(-2, 3) / 100;
+    property.marketValue = Math.max(Math.round(property.purchasePrice * 0.65), Math.round(property.marketValue * (1 + marketChange)));
+    const netRent = property.status === "rented" ? property.rentIncome - property.monthlyFee : -property.monthlyFee;
+    passiveIncome += netRent;
+  });
+  if (stocks.marketMonth % 3 === 0) {
+    passiveIncome += STOCK_PRODUCTS.reduce((sum, product) => {
+      const units = stocks.holdings[product.id] ?? 0;
+      return sum + Math.floor(units * product.dividend);
+    }, 0);
+  }
+  investments.lastPassiveIncome = passiveIncome;
+  if (passiveIncome) {
+    applyToStats(state.stats, { money: passiveIncome });
+    recordMoneyChange(passiveIncome, passiveIncome > 0 ? "房租与股票分红收入" : "空置房产维护费");
+  }
+}
+
 function applyToStats(stats, effects) {
   Object.entries(effects).forEach(([key, change]) => {
     const current = stats[key] ?? 0;
@@ -671,7 +743,10 @@ function applyMonthlyPressure(action) {
   const cared = new Set(ACTION_CARE[action.id] ?? []);
   const effects = {};
   CORE_STATS.forEach((key) => {
-    if (!cared.has(key)) effects[key] = key === "study" || key === "health" || key === "mood" ? -2 : -1;
+    if (!cared.has(key)) {
+      const careerPressure = Boolean(state.career) && ["health", "mood"].includes(key);
+      effects[key] = careerPressure ? -1 : key === "study" || key === "health" || key === "mood" ? -2 : -1;
+    }
     if (state.stats[key] >= 78) effects[key] = (effects[key] ?? 0) - 1;
   });
   if (!cared.has("money") && state.stats.money > 0 && !state.career) {
@@ -685,6 +760,7 @@ function applyCareerEconomy(action) {
   const career = state.career;
   if (!career || !isWorkingLife()) return null;
   career.months = (career.months ?? 0) + 1;
+  applyInvestmentReturns();
   const incomeSwing = career.path === "business" ? randomBetween(-7, 8) : randomBetween(-1, 2);
   const actionBonus = career.path === "job" && action.id === "work" ? 2
     : career.path === "business" && ["operate", "customers"].includes(action.id) ? 3 : 0;
@@ -700,6 +776,10 @@ function applyCareerEconomy(action) {
   const shortfall = totalCost - paid;
   career.lastSettlement = { income, rent: career.rent, utilities, livingCost: career.livingCost, totalCost, paid, shortfall, turn: state.turn };
   career.arrears = (career.arrears ?? 0) + shortfall;
+  const surplus = income - totalCost;
+  if (shortfall > 0) applyToStats(state.stats, { mood: -2 });
+  else if (surplus >= 8) applyToStats(state.stats, { mood: 2 });
+  else if (surplus >= 2) applyToStats(state.stats, { mood: 1 });
   addMemory(
     `💳 本月结算：收入 ${income}，房租 ${career.rent}、水电 ${utilities}、生活费 ${career.livingCost}${shortfall ? `，尚欠 ${shortfall}` : "，已结清"}。`,
     getStage(state.turn).label,
@@ -924,7 +1004,8 @@ function loadGame() {
     if (backgroundRepaired && previousStory) {
       saved.memories = saved.memories.map((memory) => memory.text === previousStory ? { ...memory, text: saved.character.story } : memory);
     }
-    saved.version = 9;
+    const previousVersion = saved.version ?? 1;
+    saved.version = 10;
     saved.education ??= { route: "undecided", track: saved.turn < 30 ? "middle-school" : "academic", exitTurn: null };
     if (saved.education.track === "university" && !saved.education.admission) {
       const wasVocational = saved.memories.some((memory) => String(memory.stage ?? "").includes("中职"));
@@ -948,7 +1029,29 @@ function loadGame() {
     saved.economy.ledger ??= [];
     saved.economy.chanceHistory ??= [];
     saved.economy.lottery ??= { tickets: 0, spent: 0, won: 0, bestPrize: 0 };
+    saved.investments ??= createEmptyInvestments();
+    saved.investments.properties ??= [];
+    saved.investments.stocks ??= createEmptyInvestments().stocks;
+    saved.investments.lastPassiveIncome ??= 0;
+    const investmentDefaults = createEmptyInvestments().stocks;
+    saved.investments.stocks.prices ??= investmentDefaults.prices;
+    saved.investments.stocks.holdings ??= investmentDefaults.holdings;
+    saved.investments.stocks.averageCosts ??= investmentDefaults.averageCosts;
+    saved.investments.stocks.marketMonth ??= 0;
+    STOCK_PRODUCTS.forEach((product) => {
+      saved.investments.stocks.prices[product.id] ??= product.basePrice;
+      saved.investments.stocks.holdings[product.id] ??= 0;
+      saved.investments.stocks.averageCosts[product.id] ??= 0;
+    });
     saved.career ??= null;
+    if (saved.career && previousVersion < 10) {
+      const educationBonus = ({ postgraduate: 7, elite: 5, overseas: 5, bachelor: 3, topup: 3, junior: 1 }[saved.education.admission?.level] ?? 0);
+      const floor = saved.career.path === "business"
+        ? (saved.career.location === "away" ? 28 : 20)
+        : (saved.career.location === "away" ? 24 : 18) + educationBonus;
+      saved.career.baseIncome = Math.max(saved.career.baseIncome ?? 0, floor);
+      saved.career.economicModel = 2;
+    }
     saved.balance ??= { lastActionId: null, repeatCount: 0, statBands: createStatBands(saved.stats) };
     saved.balance.statBands ??= createStatBands(saved.stats);
     saved.pendingScenes ??= saved.pendingScene ? [saved.pendingScene] : [];
@@ -2089,9 +2192,9 @@ function buildCareerProfile(path, location) {
       path, location, locationLabel: away ? "去外地闯荡" : "留在家乡",
       title, employer: away ? "外地成长型公司" : `${state.character.city}本地单位`,
       housing: away ? "与人合租" : "与家人同住",
-      baseIncome: (away ? 18 : 13) + educationBonus,
+      baseIncome: (away ? 24 : 18) + educationBonus,
       rent: away ? 8 : 0, utilities: away ? 3 : 2, livingCost: away ? 6 : 4,
-      arrears: 0, months: 0, startedTurn: state.turn
+      arrears: 0, months: 0, startedTurn: state.turn, economicModel: 2
     };
   }
   return {
@@ -2099,9 +2202,9 @@ function buildCareerProfile(path, location) {
     name: background.business,
     title: "经营者", employer: background.business,
     housing: away ? "与人合租并租用共享工位" : "住在家中并从低成本场地起步",
-    baseIncome: away ? 18 : 12,
+    baseIncome: away ? 28 : 20,
     rent: away ? 9 : 2, utilities: away ? 4 : 3, livingCost: away ? 6 : 4,
-    arrears: 0, months: 0, startedTurn: state.turn
+    arrears: 0, months: 0, startedTurn: state.turn, economicModel: 2
   };
 }
 
@@ -2252,6 +2355,32 @@ function applySpecialChoice(special) {
     state.career.livingCost = Math.max(2, state.career.livingCost + (special.livingDelta ?? 0));
     if (special.title) state.career.title = special.title;
   }
+  if (special.type === "addProperty") {
+    state.investments ??= createEmptyInvestments();
+    if (!state.investments.properties.some((property) => property.id === special.property.id)) {
+      state.investments.properties.push({ ...special.property });
+    }
+  }
+  if (special.type === "setPropertyStatus") {
+    const property = state.investments?.properties.find((item) => item.id === special.propertyId);
+    if (property) property.status = special.status;
+  }
+  if (special.type === "sellProperty") {
+    state.investments.properties = state.investments.properties.filter((property) => property.id !== special.propertyId);
+  }
+  if (special.type === "tradeStock") {
+    const stocks = state.investments.stocks;
+    const currentUnits = stocks.holdings[special.stockId] ?? 0;
+    if (special.side === "buy") {
+      const oldCost = (stocks.averageCosts[special.stockId] ?? 0) * currentUnits;
+      const nextUnits = currentUnits + special.units;
+      stocks.holdings[special.stockId] = nextUnits;
+      stocks.averageCosts[special.stockId] = Math.round(((oldCost + special.price * special.units) / nextUnits) * 10) / 10;
+    } else {
+      stocks.holdings[special.stockId] = Math.max(0, currentUnits - special.units);
+      if (stocks.holdings[special.stockId] === 0) stocks.averageCosts[special.stockId] = 0;
+    }
+  }
   if (special.type === "setRoute") {
     state.education.route = special.route;
     state.education.track = special.track;
@@ -2312,8 +2441,129 @@ function createOpeningScene(origin) {
   };
 }
 
+function createAssetManagementScene() {
+  const properties = state.investments.properties;
+  const stockValue = Math.round(getStockMarketValue());
+  return {
+    id: createId(), icon: "🏦", title: "这个月的资产安排",
+    story: `你有 ${properties.length} 套房产，股票账户市值 ${stockValue}，可用资金 ${state.stats.money}。房产门槛高、现金流较稳；股票随市场涨跌，可能盈利也可能亏损。`,
+    choices: [
+      { label: `查看房产市场与已有房产（${properties.length}套）`, effects: {}, followUp: createPropertyMarketScene(), result: "你打开房产清单，开始比较价格、租金和出售价值。" },
+      { label: `查看股票账户（市值${stockValue}）`, effects: {}, followUp: createStockMarketScene(), result: "行情只是当前价格，不保证下个月继续同一方向。" },
+      { label: "这个月不投资，保留现金", effects: { mood: 2 }, result: "没有交易也是一种决定。现金不会上涨，却能应对生活里的意外。" }
+    ]
+  };
+}
+
+function createPropertyMarketScene() {
+  const owned = state.investments.properties;
+  const choices = [];
+  owned.slice(0, 3).forEach((property) => {
+    choices.push({
+      label: `管理${property.name}（${property.status === "rented" ? `出租中，每月净租${property.rentIncome - property.monthlyFee}` : "空置中"}）`,
+      effects: {}, followUp: createPropertyManagementScene(property), result: "你重新核对这套房的租赁状态、维护费和当前市场价值。"
+    });
+  });
+  PROPERTY_TYPES.forEach((type) => {
+    const property = {
+      id: createId(), typeId: type.id, name: type.name, icon: type.icon,
+      purchasePrice: type.price, marketValue: type.price, rentIncome: type.rentIncome,
+      monthlyFee: type.monthlyFee, status: "vacant", purchasedAt: getStage(state.turn).label
+    };
+    choices.push({
+      label: `购买${type.name}（${type.price}，潜在净月租${type.rentIncome - type.monthlyFee}）`,
+      requires: { money: type.price }, effects: { money: -type.price },
+      special: { type: "addProperty", property }, followUp: createPropertyUseScene(property),
+      result: `你支付 ${type.price} 买下${type.name}。房子已经属于你，但空置时仍要承担每月 ${type.monthlyFee} 的维护费。`
+    });
+  });
+  choices.push({ label: "暂时不买，继续积累首付款", effects: { study: 1, mood: 1 }, result: "你记下价格和租金，没有因为能看见资产就仓促买入。" });
+  return {
+    id: createId(), icon: "🏘️", title: "房产市场",
+    story: "房价会逐月小幅波动。出租能带来固定租金，但要扣维护费；空置房仍有成本，卖出价格也可能低于买入价。",
+    choices
+  };
+}
+
+function createPropertyUseScene(property) {
+  return {
+    id: createId(), icon: property.icon, title: `${property.name}如何使用`,
+    story: `这套房当前市值 ${property.marketValue}。如果出租，每月租金 ${property.rentIncome}、维护费 ${property.monthlyFee}；保留空置则只有维护支出。`,
+    choices: [
+      { label: "立即出租，建立每月租金收入", effects: { mood: 2 }, special: { type: "setPropertyStatus", propertyId: property.id, status: "rented" }, result: `房子成功出租，从下个月开始每月获得净租金 ${property.rentIncome - property.monthlyFee}。` },
+      { label: "暂时空置，等待以后决定", effects: { mood: 1 }, result: `房子暂时空置，每月仍会扣除 ${property.monthlyFee} 的维护费。` }
+    ]
+  };
+}
+
+function createPropertyManagementScene(property) {
+  const liveProperty = state.investments.properties.find((item) => item.id === property.id) ?? property;
+  const salePrice = Math.max(1, Math.round(liveProperty.marketValue * (0.92 + Math.random() * 0.16)));
+  const choices = [];
+  if (liveProperty.status !== "rented") {
+    choices.push({ label: `出租，每月净收入${liveProperty.rentIncome - liveProperty.monthlyFee}`, effects: { mood: 2 }, special: { type: "setPropertyStatus", propertyId: liveProperty.id, status: "rented" }, result: "租约签好后，这套房从下个月开始带来稳定现金流。" });
+  } else {
+    choices.push({ label: "继续出租，维持固定收入", effects: { mood: 1 }, result: "租客继续居住，租金按月进入你的账户。" });
+    choices.push({ label: "结束出租，暂时收回房屋", effects: { mood: -1 }, special: { type: "setPropertyStatus", propertyId: liveProperty.id, status: "vacant" }, result: "房屋重新空置，租金停止，维护费用仍会继续。" });
+  }
+  choices.push(
+    { label: `按当前报价 ${salePrice} 卖出`, effects: { money: salePrice }, special: { type: "sellProperty", propertyId: liveProperty.id }, result: `交易完成，你收回 ${salePrice}。与买入价 ${liveProperty.purchasePrice} 相比，盈亏已经兑现。` },
+    { label: "继续持有，不改变用途", effects: {}, result: "你保留了房产，也继续承担它当前的收益和成本。" }
+  );
+  return {
+    id: createId(), icon: liveProperty.icon, title: `管理${liveProperty.name}`,
+    story: `买入价 ${liveProperty.purchasePrice}，当前估值 ${liveProperty.marketValue}，状态为${liveProperty.status === "rented" ? "出租" : "空置"}。`, choices
+  };
+}
+
+function createStockMarketScene() {
+  const stocks = state.investments.stocks;
+  const choices = [];
+  STOCK_PRODUCTS.forEach((product) => {
+    const price = stocks.prices[product.id] ?? product.basePrice;
+    const units = stocks.holdings[product.id] ?? 0;
+    const bundle = 5;
+    const total = Math.round(price * bundle);
+    choices.push({
+      label: `买入${product.name} ${bundle}份（${total}）`, requires: { money: total }, effects: { money: -total },
+      special: { type: "tradeStock", side: "buy", stockId: product.id, units: bundle, price },
+      result: `你以每份 ${price} 买入${product.name} ${bundle}份。下个月价格可能上涨，也可能下跌。`
+    });
+    if (units > 0) {
+      choices.push({
+        label: `卖出${product.name}全部 ${units}份（约${Math.round(price * units)}）`, effects: { money: Math.round(price * units) },
+        special: { type: "tradeStock", side: "sell", stockId: product.id, units, price },
+        result: `你按当前价格卖出${product.name}，账面涨跌变成了真实盈亏。`
+      });
+    }
+  });
+  choices.push({ label: "不交易，只观察市场", effects: { study: 2, mood: 1 }, result: "你记录了价格，没有因为一次涨跌就改变全部计划。" });
+  const quote = STOCK_PRODUCTS.map((product) => `${product.icon}${product.name} ${stocks.prices[product.id] ?? product.basePrice}（持有${stocks.holdings[product.id] ?? 0}）`).join("；");
+  return { id: createId(), icon: "📈", title: "简化股票市场", story: `${quote}。宽基波动较小，成长科技波动较大，红利组合每三个月可能分红。这里没有稳赚选项。`, choices };
+}
+
+function createCareerLeisureScene() {
+  const scenes = [
+    { icon: "🎬", title: "真正不谈工作的晚上", story: "你关掉工作消息，选了一部一直想看的电影。今晚没有绩效、客户或账单讨论。", choices: [
+      { label: "买点喜欢的食物，好好看完", effects: { mood: 5, money: -3 }, result: "剧情结束时问题仍在，但你重新感觉生活不只剩任务。" },
+      { label: "在家简单休息，不额外消费", effects: { mood: 4, health: 2 }, result: "一个安静晚上没有产出，却让疲惫真正下降。" }
+    ] },
+    { icon: "🌳", title: "离住处不远的公园", story: "天气难得舒服，公园里有人跑步、遛狗，也有人只是坐着发呆。", choices: [
+      { label: "慢慢走一圈，把手机调成静音", effects: { mood: 5, health: 3 }, result: "没有花钱的一段时间，也能让身体和情绪同时松下来。" },
+      { label: "约朋友一起吃顿简单的饭", effects: { mood: 5, social: 4, money: -4 }, result: "你们没有解决未来，只认真交换了最近的生活。" }
+    ] },
+    { icon: "🎨", title: "重新捡起以前的爱好", story: `工作之后，你已经很久没有认真使用“${state.character.talent.name}”这项天赋。这个月终于空出半天。`, choices: [
+      { label: "买一点材料，认真做一次", effects: { mood: 6, study: 2, money: -3 }, result: "成品不一定有用，但那几个小时重新属于你自己。" },
+      { label: "先从免费的方式重新开始", effects: { mood: 5, health: 1 }, result: "没有昂贵装备，兴趣仍然慢慢回来了。" }
+    ] }
+  ];
+  return { id: createId(), ...pick(scenes) };
+}
+
 function createCareerActionScene(action) {
   if (action.id === "luck") return createLuckScene();
+  if (action.id === "assets") return createAssetManagementScene();
+  if (action.id === "leisure") return createCareerLeisureScene();
   const career = state.career;
   const isBusiness = career.path === "business";
   const sceneMap = {

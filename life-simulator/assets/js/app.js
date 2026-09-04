@@ -340,6 +340,20 @@ function showEvent(event) {
     button.addEventListener("click", () => resolveEvent(event, choice));
     return button;
   });
+  const hasAvailableChoice = event.choices.some((choice) => getUnmetRequirements(choice.requires).length === 0);
+  if (!hasAvailableChoice) {
+    const escapeChoice = {
+      label: "条件不足，先离开这里",
+      effects: {},
+      result: "你没有勉强花掉并不存在的钱，也没有让这件事困住接下来的生活。"
+    };
+    const escapeButton = document.createElement("button");
+    escapeButton.type = "button";
+    escapeButton.className = "choice-button escape-choice";
+    escapeButton.innerHTML = "<span>条件不足，先离开这里</span><span class=\"choice-arrow\">→</span>";
+    escapeButton.addEventListener("click", () => resolveEvent(event, escapeChoice));
+    choices.push(escapeButton);
+  }
   document.querySelector("#eventChoices").replaceChildren(...choices);
   eventModal.classList.remove("hidden");
 }
@@ -1107,7 +1121,8 @@ function createSchoolRaffleScene() {
         label: "花 3 元抽一次", requires: { money: ticketPrice }, effects: outcome.effects,
         special: { type: "recordChance", name: "校园义卖抽奖", stake: ticketPrice, prize: outcome.prize }, result: outcome.result
       },
-      { label: "直接捐一元，不参加抽奖", requires: { money: 1 }, effects: { money: -1, mood: 2 }, special: { type: "recordChance", name: "校园义卖捐款", stake: 1, prize: 0 }, result: "你没有拿抽奖券，只把一元放进捐款箱。结果不随机，去向却很清楚。" }
+      { label: "直接捐一元，不参加抽奖", requires: { money: 1 }, effects: { money: -1, mood: 2 }, special: { type: "recordChance", name: "校园义卖捐款", stake: 1, prize: 0 }, result: "你没有拿抽奖券，只把一元放进捐款箱。结果不随机，去向却很清楚。" },
+      { label: "口袋空空，看看热闹就离开", effects: { mood: 1 }, result: "你没有因为没钱硬撑。看完开奖后，你跟着人群离开了摊位。" }
     ]
   };
 }

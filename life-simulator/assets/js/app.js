@@ -20,7 +20,9 @@ const ACTION_CARE = {
   activity: ["study", "social"], family: ["family", "mood"], rest: ["health", "mood"], finances: ["money"],
   luck: ["mood"],
   language: ["study"], coursework: ["study"], work: ["money"], skill: ["study"],
-  network: ["social"], "job-search": ["study", "social"]
+  network: ["social"], "job-search": ["study", "social"],
+  course: ["study"], club: ["social", "mood"], parttime: ["money"],
+  internship: ["study", "social"], future: ["study"], certificate: ["study"]
 };
 
 const BACKGROUND_DATA = {
@@ -155,6 +157,50 @@ const WORK_ACTIONS = [
   { id: "luck", icon: "🎲", name: "试试运气", note: "花一点钱，接受完全随机的结果", color: "#ffe1c7", effects: { mood: 1 } }
 ];
 
+const COLLEGE_DATA = {
+  elite: {
+    label: "重点本科", duration: 40,
+    schools: ["华东综合大学", "南江理工大学", "北城师范大学", "滨海财经大学"]
+  },
+  bachelor: {
+    label: "普通本科", duration: 40,
+    schools: ["南江学院", "海州大学", "省城科技学院", "新城师范学院", "江北财经学院"]
+  },
+  junior: {
+    label: "专科", duration: 30,
+    schools: ["城市职业技术学院", "滨海信息职业学院", "省城商贸职业学院", "交通职业技术学院"]
+  },
+  overseas: {
+    label: "海外本科", duration: 40,
+    schools: ["北岸州立大学", "圣河文理学院", "西港科技大学", "新桥大学"]
+  },
+  topup: {
+    label: "专升本", duration: 20,
+    schools: ["省城科技学院", "南江学院", "新城师范学院"]
+  },
+  postgraduate: {
+    label: "硕士研究生", duration: 30,
+    schools: ["华东综合大学", "南江理工大学", "海州大学"]
+  }
+};
+
+const COLLEGE_MAJORS = [
+  "计算机科学与技术", "汉语言文学", "会计学", "机械设计制造", "护理学",
+  "市场营销", "数字媒体艺术", "学前教育", "电子商务", "建筑工程技术"
+];
+
+const COLLEGE_ACTIONS = [
+  { id: "course", icon: "📚", name: "修读专业课", note: "上课、作业、实验和期末成绩", color: "#dce8ff", effects: { study: 6, mood: -2, health: -1 } },
+  { id: "friends", icon: "🛏️", name: "经营大学关系", note: "室友、同班同学和新的朋友圈", color: "#ffe0e8", effects: { social: 6, mood: 3, study: -1 } },
+  { id: "club", icon: "🎸", name: "参加社团活动", note: "寻找兴趣，也承担集体事务", color: "#eee2ff", effects: { social: 5, mood: 4, study: -1, money: -2 } },
+  { id: "parttime", icon: "☕", name: "校外兼职", note: "用时间换收入和社会经验", color: "#ffe6ce", effects: { money: 9, health: -3, study: -2 } },
+  { id: "internship", icon: "💼", name: "寻找实习", note: "大二以后接触真实岗位", color: "#daf2df", effects: { study: 4, social: 4, money: 3, health: -2 }, minCollegeMonth: 10 },
+  { id: "future", icon: "🧭", name: "规划毕业去向", note: "就业、升学和资格准备", color: "#fff0bd", effects: { study: 4, mood: -1, money: -2 }, finalYearOnly: true },
+  { id: "finances", icon: "👛", name: "安排生活费", note: "兼职、消费和储蓄目标", color: "#fff0bd", effects: { mood: 1 } },
+  { id: "rest", icon: "🌙", name: "休息和锻炼", note: "恢复身体，暂时放下绩点", color: "#dceced", effects: { health: 6, mood: 4, study: -2 } },
+  { id: "luck", icon: "🎲", name: "试试运气", note: "成年后的随机机会与彩票", color: "#ffe1c7", effects: { mood: 1 } }
+];
+
 const EVENTS = [
   {
     id: "seatmate", icon: "✏️", title: "沉默的新同桌",
@@ -275,7 +321,7 @@ function generateOrigin(identityChoice) {
 
 function startLife() {
   state = {
-    version: 7,
+    version: 8,
     character: pendingOrigin,
     stats: { ...pendingOrigin.stats },
     turn: 0,
@@ -426,13 +472,16 @@ function renderGame() {
   document.querySelector("#lifeStage").textContent = `${stage.grade} · ${stage.month} · ${stage.age} 岁`;
   document.querySelector("#characterLine").textContent = isWorkingLife()
     ? `${character.city}，已经进入社会，生活以工作、收入和独立生存为中心`
-    : `${character.city}，就读于${character.school}`;
+    : isUniversityLife()
+      ? `${state.education.admission.school} · ${state.education.admission.major} · ${state.education.admission.label}`
+      : `${character.city}，就读于${character.school}`;
   document.querySelector("#familySummary").textContent = `${character.family.name}。${character.parent}。${character.family.detail}`;
   document.querySelector("#backgroundTags").replaceChildren(
     makeTag(`性格 · ${character.personality}`),
     makeTag(`天赋 · ${character.talent.name}`),
     makeTag(`朋友 · ${state.friends.length ? state.friends.slice(0, 2).map((friend) => friend.name).join("、") : "还没有"}`),
     makeTag(`路线 · ${getRouteLabel()}`),
+    makeTag(`学籍 · ${getEducationSummary()}`),
     makeTag(`项目 · ${state.projects.find((project) => project.status === "active")?.name ?? "暂无"}`),
     makeTag(state.economy.savingsGoal
       ? `攒钱 · ${state.economy.savingsGoal.name} ${state.stats.money}/${state.economy.savingsGoal.cost}`
@@ -500,6 +549,16 @@ function getStage(turn) {
   if (education.track === "dropout" || education.track === "work") {
     const elapsed = Math.max(0, turn - (education.exitTurn ?? 20));
     const grade = `进入社会第 ${Math.floor(elapsed / 10) + 1} 年`;
+    return { grade, month, age: 13 + Math.floor(turn / 10), label: `${grade} · ${month}` };
+  }
+  if (education.track === "university" && education.admission) {
+    const elapsed = Math.max(0, turn - education.admission.startTurn);
+    const year = Math.floor(elapsed / 10) + 1;
+    const grade = `${education.admission.label} ${year} 年级`;
+    return { grade, month, age: 13 + Math.floor(turn / 10), label: `${grade} · ${month}` };
+  }
+  if (education.retaking) {
+    const grade = "高考复读";
     return { grade, month, age: 13 + Math.floor(turn / 10), label: `${grade} · ${month}` };
   }
 
@@ -598,6 +657,7 @@ function detectThresholdScene() {
 
 function createThresholdScene(key, band) {
   if (isWorkingLife()) return createWorkThresholdScene(key, band);
+  if (isUniversityLife()) return createUniversityThresholdScene(key, band);
   const scenes = {
     study: {
       low: { icon: "📉", title: "功课开始跟不上", story: "连续几次作业和测验都出现大片空白。老师没有立刻批评，而是要求你这周必须决定怎么补救。", choices: [
@@ -654,14 +714,24 @@ function createThresholdScene(key, band) {
 }
 
 function getActionLockReason(action) {
-  if (state.stats.health < 25 && ["study", "language", "coursework", "activity", "work", "skill", "job-search"].includes(action.id)) return "健康过低，必须先恢复身体";
-  if (state.stats.mood < 25 && ["study", "language", "coursework", "activity", "work"].includes(action.id)) return "心情过低，暂时无法承担高压行动";
+  if (state.stats.health < 25 && ["study", "language", "coursework", "activity", "work", "skill", "job-search", "course", "parttime", "internship", "future"].includes(action.id)) return "健康过低，必须先恢复身体";
+  if (state.stats.mood < 25 && ["study", "language", "coursework", "activity", "work", "course", "parttime", "internship", "future"].includes(action.id)) return "心情过低，暂时无法承担高压行动";
   if (state.stats.social < 25 && action.id === "activity") return "人缘过低，暂时无法加入合作项目";
+  if (isUniversityLife()) {
+    const admission = state.education.admission;
+    const elapsed = Math.max(0, state.turn - admission.startTurn);
+    if (action.minCollegeMonth && elapsed < action.minCollegeMonth) return `入学满 ${Math.ceil(action.minCollegeMonth / 10)} 年后开放`;
+    if (action.finalYearOnly && elapsed < admission.duration - 10) return "进入最后一学年后开放";
+  }
   return null;
 }
 
 function isWorkingLife() {
   return ["dropout", "work"].includes(state.education.track);
+}
+
+function isUniversityLife() {
+  return state.education.track === "university" && Boolean(state.education.admission);
 }
 
 function createWorkThresholdScene(key, band) {
@@ -762,8 +832,23 @@ function loadGame() {
     if (backgroundRepaired && previousStory) {
       saved.memories = saved.memories.map((memory) => memory.text === previousStory ? { ...memory, text: saved.character.story } : memory);
     }
-    saved.version = 7;
+    saved.version = 8;
     saved.education ??= { route: "undecided", track: saved.turn < 30 ? "middle-school" : "academic", exitTurn: null };
+    if (saved.education.track === "university" && !saved.education.admission) {
+      const wasVocational = saved.memories.some((memory) => String(memory.stage ?? "").includes("中职"));
+      const level = saved.education.route === "international" ? "overseas" : wasVocational ? "junior" : "bachelor";
+      const profile = COLLEGE_DATA[level];
+      saved.education.admission = {
+        level,
+        label: profile.label,
+        school: pick(profile.schools),
+        major: pick(COLLEGE_MAJORS),
+        duration: profile.duration,
+        startTurn: 60,
+        score: null,
+        migrated: true
+      };
+    }
     saved.friends ??= [];
     saved.projects ??= [];
     saved.projects = saved.projects.map((project) => ({ phase: 1, quality: 0, status: "active", notes: [], ...project }));
@@ -783,6 +868,7 @@ function loadGame() {
       if (oldEvent) saved.pendingScenes.push(oldEvent);
       delete saved.pendingEventId;
     }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
     return saved;
   } catch {
     return null;
@@ -792,6 +878,7 @@ function loadGame() {
 function getAvailableActions() {
   let actions;
   if (["dropout", "work"].includes(state.education.track)) actions = WORK_ACTIONS;
+  else if (isUniversityLife()) actions = COLLEGE_ACTIONS;
   else if (state.education.route === "international" && state.turn >= 20) actions = INTERNATIONAL_ACTIONS;
   else actions = SCHOOL_ACTIONS;
   const activeProject = state.projects.find((project) => project.status === "active");
@@ -805,9 +892,17 @@ function getRouteLabel() {
   if (["dropout", "work"].includes(track)) return "社会生存";
   if (route === "international") return "国际升学";
   if (track === "vocational") return "职业教育";
-  if (track === "university") return "大学";
+  if (track === "university") return state.education.admission?.label ?? "大学";
   if (route === "domestic") return "国内升学";
   return "尚未决定";
+}
+
+function getEducationSummary() {
+  if (isWorkingLife()) return "已进入社会";
+  if (state.education.retaking) return "高考复读中";
+  const admission = state.education.admission;
+  if (admission) return `${admission.school} · ${admission.major}`;
+  return state.character.school;
 }
 
 function formatEffectSummary(effects) {
@@ -817,6 +912,12 @@ function formatEffectSummary(effects) {
 }
 
 function createActionScene(action) {
+  if (isUniversityLife()) {
+    if (action.id === "finances") return createMoneyScene();
+    if (action.id === "luck") return createLuckScene();
+    if (action.id === "friends") return createUniversityFriendshipScene();
+    return createUniversityActionScene(action);
+  }
   if (action.id === "friends") return createFriendshipScene();
   if (action.id === "activity") return createProjectActionScene();
   if (action.id === "finances") return createMoneyScene();
@@ -905,8 +1006,166 @@ function createActionScene(action) {
   return pick(scenesByAction[action.id] ?? scenesByAction.rest);
 }
 
+function createUniversityFriendshipScene() {
+  const existing = state.friends.length ? pick(state.friends) : null;
+  if (existing) {
+    return {
+      id: createId(), icon: "🧑‍🤝‍🧑", title: `和${existing.name}的大学周末`,
+      story: `${existing.name}邀请你一起去学校附近走走。课程、宿舍和未来计划之外，你们终于有时间认真聊聊彼此最近的状态。`,
+      choices: [
+        { label: "赴约，把最近的压力说出来", effects: { social: 5, mood: 4, money: -2 }, special: { type: "adjustFriend", friendId: existing.id, amount: 8 }, result: `你们聊到天黑。${existing.name}不一定能解决问题，却更理解你正在经历什么。` },
+        { label: "留在宿舍完成自己的安排", effects: { study: 3, mood: 1 }, special: { type: "adjustFriend", friendId: existing.id, amount: -2 }, result: "你完成了计划，也意识到关系需要投入时间才能继续。" }
+      ]
+    };
+  }
+  const friend = generateFriend();
+  return {
+    id: createId(), icon: "🛏️", title: `在宿舍认识${friend.name}`,
+    story: `开学后的宿舍生活比想象中具体。${friend.name}${friend.trait}，你们因为一次公共区域的整理问题第一次认真说上话。`,
+    choices: [
+      { label: "主动商量规则，也聊聊彼此", effects: { social: 6, mood: 3 }, special: { type: "addFriend", friend }, result: `${friend.name}成为你大学阶段第一个真正记住名字和习惯的朋友。` },
+      { label: "保持礼貌，先观察一阵", effects: { mood: 2, study: 1 }, result: "你们维持着舒服的距离，关系暂时停留在普通室友。" }
+    ]
+  };
+}
+
+function createUniversityActionScene(action) {
+  const admission = state.education.admission;
+  const scenes = {
+    course: {
+      icon: "📚", title: `${admission.major}的专业课考核`,
+      story: "老师公布了占期末成绩四成的小组作业。资料不完整、队友时间不同，单靠临时突击很难拿到理想成绩。",
+      choices: [
+        { label: "提前拆分任务，每周检查一次进度", effects: { study: 5, social: 2, mood: -1 }, result: "过程比一次熬夜漫长，但最终交付没有在截止日前失控。" },
+        { label: "先完成自己最擅长的部分", effects: { study: 4, social: -1, health: 1 }, result: "你的部分质量不错，小组整体却留下了配合上的遗憾。" }
+      ]
+    },
+    club: {
+      icon: "🎸", title: "社团招新后的第一次任务",
+      story: "你加入的社团要办一次公开活动。真正开始筹备后，场地、经费、宣传和人员安排都需要有人承担。",
+      choices: [
+        { label: "负责一块具体工作，按时交付", effects: { social: 5, study: 2, mood: 2 }, result: "活动当天仍有混乱，但你负责的部分经得起检查。" },
+        { label: "只做普通参与者，保留个人时间", effects: { mood: 4, health: 2 }, result: "你享受了活动，也没有让社团占满整个学期。" }
+      ]
+    },
+    parttime: {
+      icon: "☕", title: "课表之外的兼职班次",
+      story: "附近门店愿意安排晚班，按小时结算。收入能缓解生活费压力，但第二天早课不会因此推迟。",
+      choices: [
+        { label: "接下固定晚班，建立收入来源", effects: { money: 10, health: -4, study: -2 }, result: "第一笔工资很具体，疲惫也同样具体。你开始重新计算时间的价格。" },
+        { label: "只接周末临时班", effects: { money: 5, health: -1, mood: 1 }, result: "收入少一些，但课程和睡眠没有完全被打乱。" }
+      ]
+    },
+    internship: {
+      icon: "💼", title: "第一份实习申请",
+      story: `招聘信息写着“有相关经验优先”。你学的是${admission.major}，课程成绩只是门槛，简历、面试和实际任务才决定能否留下。`,
+      choices: [
+        { label: "认真准备作品和面试，投递岗位", requires: { study: 55 }, effects: { study: 5, social: 4, money: 4, mood: -1 }, result: "你拿到一次短期实习。工作内容并不光鲜，却第一次与专业真正连接。" },
+        { label: "先补足能力，再等下一轮招聘", effects: { study: 5, mood: 2, money: -2 }, result: "机会暂时过去，但你的准备不再只围绕考试。" }
+      ]
+    },
+    future: {
+      icon: "🧭", title: "毕业去向登记表",
+      story: `${admission.label}的最后一年开始了。辅导员要求填写就业、升学或待定，选择不会立刻决定人生，却会改变最后一年的准备方向。`,
+      choices: [
+        { label: "以就业为目标，准备简历和招聘", effects: { study: 3, social: 4, mood: -1 }, result: "你开始参加招聘说明会，也第一次用岗位要求审视自己的经历。" },
+        { label: "准备继续升学，把重心放回考试", requires: { study: 60 }, effects: { study: 6, health: -2, money: -3 }, result: "参考书重新堆上桌面。升学不是自动延期就业，而是另一场有门槛的竞争。" }
+      ]
+    },
+    rest: {
+      icon: "🌙", title: "没有课的半天",
+      story: "课表终于空出半天。你可以补觉、去操场，也可以继续把未完成的任务塞进这段空白。",
+      choices: [
+        { label: "补觉后去运动，让身体恢复", effects: { health: 6, mood: 3 }, result: "任务没有全部完成，但身体重新有了继续一周的力气。" },
+        { label: "留在图书馆处理积压任务", effects: { study: 4, mood: -1, health: -1 }, result: "待办清掉了一批，休息却又被推到下一次。" }
+      ]
+    }
+  };
+  const scene = scenes[action.id] ?? scenes.rest;
+  return { id: createId(), ...scene };
+}
+
+function createUniversityExtraScene() {
+  const admission = state.education.admission;
+  return { id: createId(), ...pick([
+    { icon: "🏠", title: "宿舍里的生活规则", story: "熄灯时间、空调费用和卫生安排终于引发争执。没人是坏人，但每个人都习惯了不同的生活方式。", choices: [
+      { label: "把问题逐项写下来一起商量", effects: { social: 5, mood: 2 }, result: "规则不完美，却比互相猜测有效得多。" },
+      { label: "自己多承担一点，先避免冲突", effects: { social: 2, mood: -2, health: -1 }, result: "宿舍安静下来，你的不满却没有完全消失。" }
+    ] },
+    { icon: "📝", title: "期末周同时到来", story: "三门考试、两份报告和一次展示挤在同一周。每一项都重要，但时间不允许全部做到最好。", choices: [
+      { label: "按学分和薄弱程度分配时间", effects: { study: 5, mood: -2 }, result: "你放弃了面面俱到，成绩却比混乱突击稳定。" },
+      { label: "和同学组成复习小组", effects: { study: 3, social: 4, health: -1 }, result: "有人提醒重点，也有人带来焦虑，但你不再独自应付。" }
+    ] },
+    { icon: "💳", title: "生活费比预想中更快见底", story: "教材、聚餐、交通和日用品一点点吃掉余额。离下次生活费到账还有一段时间。", choices: [
+      { label: "做一份详细预算，停止非必要支出", effects: { money: 5, mood: -2, study: 1 }, result: "日子变得克制，但你第一次真正知道钱去了哪里。" },
+      { label: "找短期兼职补上缺口", effects: { money: 8, health: -3, study: -1 }, result: "余额回升，时间却明显更紧。" }
+    ] },
+    { icon: "☎️", title: "家里打来的电话", story: `家人问起你在${admission.school}的生活。你报喜不报忧已经有一阵，电话那头仍听出了迟疑。`, choices: [
+      { label: "说出最近真正困难的部分", effects: { family: 6, mood: 3 }, result: "家人未必能解决问题，但你不再一个人维持“都很好”的表象。" },
+      { label: "只说顺利的事，让家里放心", effects: { family: 2, mood: -1 }, result: "电话平静结束，那些没说出口的话仍留在宿舍里。" }
+    ] }
+  ]) };
+}
+
+function createUniversityThresholdScene(key, band) {
+  const scenes = {
+    study: {
+      low: { icon: "📉", title: "绩点进入危险区", story: "连续缺交作业和考试失利让课程亮起预警。再不补救，奖学金、实习和毕业资格都会受影响。", choices: [
+        { label: "找任课老师确认补救方案", effects: { study: 8, mood: -2 }, result: "问题没有消失，但你拿到了一份能执行的补救清单。" },
+        { label: "减少社交，集中补最危险的课程", effects: { study: 7, social: -2 }, result: "几周很单调，最危险的一门课终于回到及格线附近。" }
+      ] },
+      high: { icon: "🏅", title: "成绩进入专业前列", story: "较高的绩点带来奖学金、交换和导师项目的机会，也意味着后续选择会更看重你的持续表现。", choices: [
+        { label: "申请导师项目，继续提高门槛", effects: { study: 3, social: 3, health: -2 }, result: "你进入更真实的项目环境，发现高分只是入场券。" },
+        { label: "维持成绩，把时间留给实践", effects: { study: 1, mood: 3, social: 2 }, result: "你没有只追逐数字，经历开始变得更完整。" }
+      ] }
+    },
+    health: {
+      low: { icon: "🏥", title: "身体撑不住大学日程", story: "熬夜、兼职和课程叠在一起，校医院建议你暂停高压安排。继续硬撑可能直接影响考试和实习。", choices: [
+        { label: "请假检查并完整休息", effects: { health: 9, study: -2, money: -3 }, result: "付出了时间和费用，身体终于不再用更强烈的方式提醒你。" },
+        { label: "退掉一项额外安排", effects: { health: 7, mood: 3, social: -1 }, result: "日程少了一项，生活重新出现可以呼吸的空隙。" }
+      ] },
+      high: { icon: "🏃", title: "稳定体能带来更多选择", story: "规律作息和运动让你能承担课程之外的活动，但好状态也可能被误认为永远不会透支。", choices: [
+        { label: "参加一次校园运动活动", effects: { health: 2, social: 4, mood: 2 }, result: "你认识了不同专业的人，也保住了自己的节奏。" },
+        { label: "保持现有安排，不额外加码", effects: { health: 2, mood: 3 }, result: "你没有把每一份余力都立刻兑换成任务。" }
+      ] }
+    },
+    mood: {
+      low: { icon: "🌧️", title: "大学生活失去方向感", story: "课程、关系和未来都像没有答案。连续几周，你很难从任何事情里获得期待。", choices: [
+        { label: "预约学校心理咨询并减少安排", effects: { mood: 9, health: 3 }, result: "生活没有立刻变好，但你开始把困境当作可以处理的问题。" },
+        { label: "把真实状态告诉可信任的人", effects: { mood: 8, social: 4 }, result: "有人知道以后，你不必继续独自维持正常。" }
+      ] },
+      high: { icon: "🌤️", title: "你开始享受大学生活", story: "你对课程和身边的人都有稳定兴趣。新的机会不断出现，但好状态同样需要边界。", choices: [
+        { label: "尝试一个一直想做的新活动", effects: { mood: 3, social: 4, money: -2 }, result: "这段经历未必写进简历，却让生活变得具体。" },
+        { label: "维持节奏，不把快乐变成任务", effects: { mood: 2, health: 3 }, result: "你保留了轻松，而不是急着证明它有价值。" }
+      ] }
+    },
+    social: {
+      low: { icon: "🪑", title: "你与同学越来越疏远", story: "课程通知、组队和实习消息常常最后才传到你这里。大学关系不只影响心情，也影响信息和机会。", choices: [
+        { label: "从一次课程小组合作重新建立联系", effects: { social: 7, study: 2 }, result: "有具体任务作为开场，交流没有想象中困难。" },
+        { label: "主动联系一个仍然信任的人", effects: { social: 6, mood: 3 }, result: "关系没有立刻恢复，但对话重新开始了。" }
+      ] },
+      high: { icon: "🤝", title: "校园关系开始带来机会", story: "同学愿意把项目、社团职位和招聘信息转给你。人缘成为资源，也带来更多请求。", choices: [
+        { label: "选择真正匹配的一次合作", effects: { social: 3, study: 3, health: -1 }, result: "你没有接下所有邀请，而是把一次合作认真做完。" },
+        { label: "先维持关系，不新增任务", effects: { social: 2, mood: 3 }, result: "你学会让关系流动，而不是用答应所有事情维持它。" }
+      ] }
+    },
+    family: {
+      low: { icon: "☎️", title: "你很久没有认真和家里说话", story: "电话只剩生活费和成绩问答。离家之后的沉默，让彼此越来越不知道对方真正的处境。", choices: [
+        { label: "打一次不赶时间的视频电话", effects: { family: 8, mood: 2 }, result: "你们没有讨论宏大未来，只重新知道了彼此最近怎么生活。" },
+        { label: "安排假期回家，提前留出费用", effects: { family: 7, money: -4 }, result: "车票花掉了一部分钱，也让回家从一句话变成具体计划。" }
+      ] },
+      high: { icon: "🏠", title: "家庭成为稳定后盾", story: "无论考试、兼职还是去向选择，你都愿意和家里讨论。支持不是替你决定，而是让失败仍有落脚处。", choices: [
+        { label: "一起讨论毕业后的现实预算", effects: { family: 3, study: 2, money: 2 }, result: "理想和房租、收入、城市成本第一次写在同一张纸上。" },
+        { label: "安排一次不谈学业的相处", effects: { family: 4, mood: 4, money: -3 }, result: "你们度过了一段普通时间，关系没有只围绕未来运转。" }
+      ] }
+    }
+  };
+  return { id: createId(), ...scenes[key][band] };
+}
+
 function createExtraScene() {
   if (["dropout", "work"].includes(state.education.track)) return generateLifeScene(state.character);
+  if (isUniversityLife()) return createUniversityExtraScene();
   return Math.random() < 0.5 ? pick(EVENTS) : generateLifeScene(state.character);
 }
 
@@ -1337,6 +1596,11 @@ function generateFriend() {
 }
 
 function createEducationMilestone() {
+  if (state.education.retaking && state.turn >= state.education.retakeDue) return createGaokaoScene(true);
+  if (isUniversityLife()) {
+    const admission = state.education.admission;
+    if (state.turn >= admission.startTurn + admission.duration) return createCollegeGraduationScene();
+  }
   if (state.turn === 20 && state.education.route === "undecided") return createRouteScene();
   if (state.turn === 30 && state.education.track !== "dropout") return state.education.route === "international" ? createInternationalEntryScene() : createZhongkaoScene();
   if (state.turn === 60 && !["dropout", "work"].includes(state.education.track)) {
@@ -1391,42 +1655,98 @@ function createInternationalEntryScene() {
   };
 }
 
-function createGaokaoScene() {
+function createGaokaoScene(isRetake = false) {
   const score = Math.max(260, Math.min(690, Math.round(280 + state.stats.study * 4.2 + randomBetween(-45, 45))));
-  const admitted = score >= 500;
+  const choices = [];
+  let resultLine;
+  if (score >= 620) {
+    const elite = createCollegeAdmission("elite", score);
+    const bachelor = createCollegeAdmission("bachelor", score);
+    resultLine = "这个分数进入重点本科录取范围，也可以为了专业或城市选择普通本科。";
+    choices.push(
+      { label: `进入${elite.school} · ${elite.major}（重点本科）`, effects: { study: 5, family: 5, money: -12 }, special: { type: "enrollCollege", admission: elite }, result: `录取通知书来自${elite.school}。四年的专业学习、宿舍生活和毕业竞争从这里开始。` },
+      { label: `选择${bachelor.school} · ${bachelor.major}（普通本科）`, effects: { study: 4, mood: 3, money: -8 }, special: { type: "enrollCollege", admission: bachelor }, result: `你根据专业和城市选择了${bachelor.school}，而不是只看学校层次。` }
+    );
+  } else if (score >= 500) {
+    const bachelor = createCollegeAdmission("bachelor", score);
+    const junior = createCollegeAdmission("junior", score);
+    resultLine = "这个分数达到普通本科录取范围，也保留了更偏技能和就业的专科选择。";
+    choices.push(
+      { label: `进入${bachelor.school} · ${bachelor.major}（普通本科）`, effects: { study: 5, family: 4, money: -8 }, special: { type: "enrollCollege", admission: bachelor }, result: `录取通知书到来。你将在${bachelor.school}完成四年本科。` },
+      { label: `选择${junior.school} · ${junior.major}（专科）`, effects: { study: 3, mood: 3, money: -5 }, special: { type: "enrollCollege", admission: junior }, result: `你选择更强调实操的${junior.school}，学制三年。` }
+    );
+  } else if (score >= 360) {
+    const junior = createCollegeAdmission("junior", score);
+    resultLine = "这个分数没有进入本科录取范围，但达到了专科批次。继续读书、复读和工作都有现实代价。";
+    choices.push(
+      { label: `进入${junior.school} · ${junior.major}（专科）`, effects: { study: 4, family: 2, money: -5 }, special: { type: "enrollCollege", admission: junior }, result: `你进入${junior.school}。三年后可以就业，也可以争取专升本。` },
+      { label: "复读一年，再参加一次高考", effects: { study: 3, mood: -5, family: -2, money: -6 }, special: { type: "startRetake", score }, result: "你回到复读班。下一次考试可能提高，也可能承受更重的压力。" }
+    );
+  } else {
+    resultLine = "这个分数没有达到本地专科批次。复读或进入社会，成为眼前最现实的两条路。";
+    choices.push({ label: "复读一年，再参加一次高考", effects: { study: 4, mood: -6, family: -2, money: -6 }, special: { type: "startRetake", score }, result: "你决定再用一年换一次机会，但结果仍要由下一年的状态决定。" });
+  }
+  choices.push({ label: "不继续读大学，直接寻找工作", effects: { money: 10, family: -3, mood: -1 }, special: { type: "setTrack", track: "work", gaokaoScore: score }, result: "你离开升学系统，开始用技能、收入和工作经历建立下一阶段。" });
   return {
     id: createId(), icon: "🎓", title: `高考放榜：${score} 分`,
-    story: admitted ? "分数超过了本科线。学校和城市的选择第一次真正摆在你面前。" : "分数没有达到理想本科线。你需要在继续读书和进入社会之间做出务实选择。",
-    choices: admitted ? [
-      { label: "选择合适的大学和专业", effects: { study: 5, family: 5, money: -8 }, special: { type: "setTrack", track: "university" }, result: "录取通知书到来，人生离开熟悉的城市，进入新的阶段。" },
-      { label: "不读大学，直接寻找工作", effects: { money: 10, family: -3 }, special: { type: "setTrack", track: "work" }, result: "你放下录取可能，开始用真实收入衡量自己的选择。" }
-    ] : [
-      { label: "选择专科或职业院校继续学习", effects: { study: 4, money: -5 }, special: { type: "setTrack", track: "university" }, result: "学校并非最初设想，但继续学习仍然给未来留下空间。" },
-      { label: "进入社会，从第一份工作开始", effects: { money: 10, mood: -2 }, special: { type: "setTrack", track: "work" }, result: "考试结束了，新的评分标准变成能力、收入和生活。" }
-    ]
+    story: `${isRetake ? "这是复读后的第二次成绩。" : "这是你第一次正式面对大学录取批次。"}${resultLine}`,
+    choices
   };
 }
 
 function createOverseasApplicationScene() {
   const success = state.stats.study + state.stats.social + randomBetween(-20, 20) >= 115;
+  const admission = createCollegeAdmission("overseas", null);
   return {
     id: createId(), icon: "✈️", title: "海外申请结果",
     story: success ? "邮箱里出现了期待已久的录取通知。新的国家、语言和生活成本都变得真实。" : "理想学校没有给出录取，但你仍收到了一些其他项目的机会。",
     choices: [
-      { label: success ? "接受录取，去海外学习" : "选择现有项目，继续海外路线", effects: { study: 5, money: -18, family: -3 }, special: { type: "setTrack", track: "university" }, result: "行李箱被合上时，你知道这条路真正开始了。" },
+      { label: success ? `接受${admission.school}录取，去海外学习` : `选择${admission.school}，继续海外路线`, effects: { study: 5, money: -18, family: -3 }, special: { type: "enrollCollege", admission }, result: `行李箱被合上时，你知道${admission.major}的四年学习真正开始了。` },
       { label: "结束国际路线，先进入社会", effects: { money: 8, mood: -2 }, special: { type: "setTrack", track: "work" }, result: "投入没有完全按计划开花，但语言和经历仍然属于你。" }
     ]
   };
 }
 
 function createVocationalGraduationScene() {
+  const admission = createCollegeAdmission("junior", null);
   return {
     id: createId(), icon: "🧰", title: "中职毕业：第一份正式去向",
     story: "实习单位给出留用机会，老师也建议你考虑继续升学。手艺、学历和收入各有现实代价。",
     choices: [
       { label: "接受留用，开始正式工作", effects: { money: 15, study: 2 }, special: { type: "setTrack", track: "work" }, result: "从实习生到正式员工，你开始独立承担工作结果。" },
-      { label: "参加考试，继续进入职业院校", effects: { study: 6, money: -5 }, special: { type: "setTrack", track: "university" }, result: "你决定再给自己几年系统学习的时间。" }
+      { label: `参加考试，进入${admission.school}`, effects: { study: 6, money: -5 }, special: { type: "enrollCollege", admission }, result: `你进入${admission.major}专业，决定再给自己三年系统学习的时间。` }
     ]
+  };
+}
+
+function createCollegeAdmission(level, score) {
+  const profile = COLLEGE_DATA[level];
+  return {
+    level,
+    label: profile.label,
+    school: pick(profile.schools),
+    major: pick(COLLEGE_MAJORS),
+    duration: profile.duration,
+    startTurn: state.turn,
+    score
+  };
+}
+
+function createCollegeGraduationScene() {
+  const admission = state.education.admission;
+  const choices = [];
+  if (admission.level === "junior") {
+    const topup = createCollegeAdmission("topup", admission.score);
+    choices.push({ label: `参加专升本，进入${topup.school}`, requires: { study: 60, money: 15 }, effects: { study: 5, money: -10, mood: -2 }, special: { type: "enrollCollege", admission: topup }, result: `你通过专升本进入${topup.school}，还需要两年完成本科学历。` });
+  } else if (["elite", "bachelor", "overseas", "topup"].includes(admission.level)) {
+    const postgraduate = createCollegeAdmission("postgraduate", admission.score);
+    choices.push({ label: `继续读研：${postgraduate.school} · ${postgraduate.major}`, requires: { study: 70, money: 20 }, effects: { study: 5, money: -12, health: -2 }, special: { type: "enrollCollege", admission: postgraduate }, result: "你没有把读研当作自动延期就业，而是接受了新的研究和毕业门槛。" });
+  }
+  choices.push({ label: "完成学业，进入社会求职", effects: { study: 2, money: 8, family: 4 }, special: { type: "setTrack", track: "work", graduated: true }, result: `你拿到${admission.label}毕业证，开始面对岗位、工资和城市成本。` });
+  return {
+    id: createId(), icon: "🎓", title: `${admission.school}毕业季`,
+    story: `你完成了${admission.major}专业的${Math.round(admission.duration / 10)}年学制。成绩、实习、人际关系和家庭条件共同影响下一步，但毕业不会自动兑换成理想工作。`,
+    choices
   };
 }
 
@@ -1479,11 +1799,33 @@ function applySpecialChoice(special) {
   if (special.type === "setRoute") {
     state.education.route = special.route;
     state.education.track = special.track;
-    if (special.track === "dropout") state.education.exitTurn = state.turn;
+    if (special.track === "dropout") {
+      state.education.exitTurn = state.turn;
+      state.education.retaking = false;
+    }
   }
   if (special.type === "setTrack") {
     state.education.track = special.track;
-    if (special.track === "work") state.education.exitTurn = state.turn;
+    if (special.gaokaoScore !== undefined) state.education.gaokaoScore = special.gaokaoScore;
+    if (special.track === "work") {
+      state.education.exitTurn = state.turn;
+      state.education.retaking = false;
+      if (special.graduated && state.education.admission) state.education.admission.graduatedAt = getStage(state.turn).label;
+    }
+  }
+  if (special.type === "enrollCollege") {
+    state.education.track = "university";
+    state.education.retaking = false;
+    delete state.education.retakeDue;
+    state.education.admission = { ...special.admission, startTurn: state.turn };
+    if (special.admission.score !== null && special.admission.score !== undefined) state.education.gaokaoScore = special.admission.score;
+  }
+  if (special.type === "startRetake") {
+    state.education.route = "domestic";
+    state.education.track = "academic";
+    state.education.retaking = true;
+    state.education.retakeDue = state.turn + 10;
+    state.education.gaokaoScore = special.score;
   }
 }
 

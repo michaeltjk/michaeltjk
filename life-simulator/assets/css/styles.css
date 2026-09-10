@@ -223,3 +223,57 @@ h1, h2, p { margin-top: 0; }
   .action-cost small { display: block; margin-left: 0; }
 }
 
+.goals-panel {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  padding: 12px;
+  background: rgba(255,255,255,.7);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.goal-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+}
+
+.goal-item + .goal-item {
+  margin-top: 10px;
+}
+
+.goal-icon {
+  font-size: 19px;
+}
+
+.goal-details strong,
+.goal-details small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.goal-details strong {
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.goal-details small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.goal-bar {
+  grid-column: 1 / -1;
+  height: 5px;
+  overflow: hidden;
+  background: #eceae3;
+  border-radius: 99px;
+}
+
+.goal-bar i {
+  display: block;
+  height: 100%;
+  background: var(--lime);
+  border-radius: inherit;
+}

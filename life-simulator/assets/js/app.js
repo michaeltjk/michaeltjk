@@ -207,6 +207,28 @@ const STOCK_PRODUCTS = [
   { id: "dividend", name: "红利组合", basePrice: 8, volatility: 0.05, dividend: 0.18, icon: "💵" }
 ];
 
+// 长期目标定义
+const LIFE_GOALS = [
+  { id: "savings-5000", name: "存款达到 5000 元", icon: "💰", target: 5000, stat: "money", months: 60 },
+  { id: "first-home", name: "买下第一套房产", icon: "🏠", target: 1, stat: "propertiesOwned", months: 120 },
+  { id: "career-promotion", name: "晋升到管理岗位", icon: "🪜", target: 1, stat: "careerLevel", months: 48 },
+  { id: "healthy-lifestyle", name: "养成健康生活习惯", icon: "💚", target: 80, stat: "health", months: 36 },
+  { id: "family-support", name: "给父母提供稳定支持", icon: "👨‍👩‍👧", target: 500, stat: "familySupport", months: 60 },
+  { id: "skill-mastery", name: "精通一项职业技能", icon: "🛠️", target: 50, stat: "primarySkill", months: 48 },
+];
+
+// 里程碑剧情
+const MILESTONE_SCENES = {
+  "savings-5000": { icon: "💰", title: "第一笔大额存款", story: "账户余额第一次突破 5000。这笔钱不多不少，却意味着你在财务上真正有了缓冲空间。", choices: [
+    { label: "继续积累，为更大目标做准备", effects: { money: 10, mood: 3 }, result: "下一个目标已经在心里成形。" },
+    { label: "奖励自己一次小旅行", effects: { mood: 7, money: -8 }, result: "你用这笔钱去了一个一直想去的地方，心情完全放松了。" }
+  ] },
+  "first-home": { icon: "🏠", title: "拿到房产证的那一天", story: "钥匙第一次插进自己名下的门锁。从此每个月的房租变成房贷，空置时要自己承担维护费用。", choices: [
+    { label: "搬进去，开始真正的独立生活", effects: { mood: 6, family: 3, money: -15 }, special: { type: "moveIntoOwnHome" }, result: "你用自己的空间换走了合租的嘈杂，也带来了完全由自己负责的账单。" },
+    { label: "先出租，用租金抵贷款", effects: { money: 8, mood: 2 }, special: { type: "rentOutOwnHome" }, result: "你成了房东，但也意味着未来一段时间仍要和别人共享空间。" }
+  ] },
+};
+
 const COLLEGE_DATA = {
   elite: {
     label: "重点本科", duration: 40,
@@ -371,7 +393,7 @@ function generateOrigin(identityChoice) {
 
 function startLife() {
   state = {
-    version: 12,
+    version: 13,
     character: pendingOrigin,
     stats: { ...pendingOrigin.stats },
     turn: 0,
@@ -381,6 +403,9 @@ function startLife() {
     economy: { savingsGoal: null, ledger: [], chanceHistory: [], lottery: { tickets: 0, spent: 0, won: 0, bestPrize: 0 } },
     investments: createEmptyInvestments(),
     career: null,
+    goals: [],
+    lifeStats: { propertiesOwned: 0, careerLevel: 0, familySupport: 0, primarySkill: 0 },
+    relationships: createRelationshipState(),
     balance: { lastActionId: null, repeatCount: 0, statBands: createStatBands(pendingOrigin.stats) },
     memories: [{ id: createId(), stage: "初一 · 九月", text: pendingOrigin.story, color: "#d9ff68" }],
     pendingScenes: [createOpeningScene(pendingOrigin)]
@@ -397,13 +422,15 @@ function takeAction(action) {
   if (actionEffects.money) recordMoneyChange(actionEffects.money, action.name);
   updateActionStreak(action.id);
   applyMonthlyPressure(action);
+  const relationshipScenes = updateRelationshipNetwork(action);
   const careerFinanceScene = applyCareerEconomy(action);
   const stageBeforeAdvance = getStage(state.turn);
   addMemory(`${action.icon} ${action.name}：${action.note}。`, stageBeforeAdvance.label, action.color);
   state.turn += 1;
-
   const scenes = [createActionScene(action)];
   if (careerFinanceScene) scenes.push(careerFinanceScene);
+  scenes.push(...relationshipScenes);
+  scenes.push(...updateGoalProgress());
   const thresholdScene = detectThresholdScene();
   if (thresholdScene) scenes.push(thresholdScene);
   if (Math.random() < 0.55) scenes.push(createExtraScene());
@@ -478,12 +505,19 @@ function showOutcome(event, choice) {
   document.querySelector("#eventStory").textContent = choice.result;
   eventOutcome.classList.remove("hidden");
 
+  // 计算实际变化（含高阈值乘数）
   const changes = Object.entries(choice.effects).filter(([, value]) => value !== 0);
   const chips = changes.length
     ? changes.map(([key, value]) => {
+        const current = state.stats[key] ?? 0;
+        let adjusted = value;
+        if (key !== "money") {
+          const multiplier = current >= 90 ? 0.1 : current >= 80 ? 0.25 : current >= 70 ? 0.45 : current >= 60 ? 0.7 : 1;
+          adjusted = value > 0 ? Math.max(1, Math.round(value * multiplier)) : Math.min(-1, Math.round(value * multiplier));
+        }
         const chip = document.createElement("span");
-        chip.className = `effect-chip ${value > 0 ? "positive" : "negative"}`;
-        chip.textContent = `${STAT_META[key].icon} ${getStatDisplayName(key)} ${value > 0 ? "+" : ""}${value}`;
+        chip.className = `effect-chip ${adjusted > 0 ? "positive" : "negative"}`;
+        chip.textContent = `${STAT_META[key].icon} ${getStatDisplayName(key)} ${adjusted > 0 ? "+" : ""}${adjusted}`;
         return chip;
       })
     : [createNeutralChip("这段故事悄悄留在了记忆里")];
@@ -536,6 +570,8 @@ function renderGame() {
     makeTag(`性格 · ${character.personality}`),
     makeTag(`天赋 · ${character.talent.name}`),
     makeTag(`朋友 · ${state.friends.length ? state.friends.slice(0, 2).map((friend) => friend.name).join("、") : "还没有"}`),
+    makeTag(`好友状态 · ${state.friends.length ? getFriendNetworkLabel() : "暂无"}`),
+    makeTag(`家人健康 · ${state.relationships?.parentHealth ?? "未记录"}`),
     makeTag(`路线 · ${getRouteLabel()}`),
     makeTag(`学籍 · ${getEducationSummary()}`),
     makeTag(`项目 · ${state.projects.find((project) => project.status === "active")?.name ?? "暂无"}`),
@@ -566,6 +602,12 @@ function renderGame() {
     );
   }
   document.querySelector("#backgroundTags").replaceChildren(...backgroundTags);
+  // 目标进度
+  const goalHtml = state.goals.filter(g => !g.completed).map(goal => {
+    const percent = Math.min(100, Math.round(goal.progress / goal.target * 100));
+    return `<div class="goal-item"><div class="goal-icon">${goal.icon}</div><div class="goal-details"><strong>${goal.name}</strong><small>已进行 ${goal.monthsPassed}/${goal.months} 个月</small><div class="goal-bar"><i style="width:${percent}%;"></i></div></div><div class="goal-progress">${goal.progress} / ${goal.target}</div></div>`;
+  }).join('');
+  document.querySelector("#goalProgress").innerHTML = goalHtml || '<div class="goal-empty">暂无长期目标。选择一个目标会帮你更有方向。</div>';
   document.querySelector("#turnCount").textContent = `已走过 ${state.turn} 个月`;
   document.querySelector("#monthHint").textContent = `${stage.grade}${stage.month}，选择一项行动推进时间`;
 
@@ -749,6 +791,145 @@ function updateActionStreak(actionId) {
   }
 }
 
+function clampValue(value, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+function createRelationshipState() {
+  return {
+    parentAge: randomBetween(38, 48),
+    parentHealth: randomBetween(62, 82),
+    lastFamilyContact: 0,
+    supportMonths: 0
+  };
+}
+
+function normalizeFriend(friend) {
+  return {
+    mood: 58,
+    health: 62,
+    pressure: 35,
+    monthsSinceContact: 0,
+    ...friend
+  };
+}
+
+function normalizeColleague(colleague) {
+  return {
+    mood: 56,
+    pressure: 42,
+    reliability: 55,
+    monthsSinceSupport: 0,
+    ...colleague
+  };
+}
+
+function normalizeRelationshipState() {
+  state.relationships ??= createRelationshipState();
+  state.relationships.parentAge ??= randomBetween(38, 48);
+  state.relationships.parentHealth ??= randomBetween(62, 82);
+  state.relationships.lastFamilyContact ??= 0;
+  state.relationships.supportMonths ??= 0;
+  state.friends = (state.friends ?? []).map(normalizeFriend);
+  if (state.career) state.career.colleagues = (state.career.colleagues ?? []).map(normalizeColleague);
+}
+
+function updateRelationshipNetwork(action) {
+  normalizeRelationshipState();
+  const scenes = [];
+  const rel = state.relationships;
+  if (action.id === "family") {
+    rel.lastFamilyContact = 0;
+    rel.supportMonths += 1;
+    rel.parentHealth = clampValue(rel.parentHealth + 2);
+    if (state.career) state.lifeStats.familySupport = (state.lifeStats.familySupport ?? 0) + 12;
+  } else {
+    rel.lastFamilyContact += 1;
+    if (state.turn > 0 && state.turn % 12 === 0) {
+      rel.parentAge += 1;
+      rel.parentHealth = clampValue(rel.parentHealth - randomBetween(1, 4));
+    } else if (Math.random() < 0.12) {
+      rel.parentHealth = clampValue(rel.parentHealth - 1);
+    }
+  }
+  if (rel.parentHealth <= 38 && rel.lastFamilyContact >= 3 && Math.random() < 0.35) scenes.push(createParentHealthScene());
+
+  state.friends.forEach((friend) => {
+    friend.monthsSinceContact = (friend.monthsSinceContact ?? 0) + 1;
+    friend.mood = clampValue((friend.mood ?? 58) + randomBetween(-3, 2));
+    friend.health = clampValue((friend.health ?? 62) + randomBetween(-1, 1));
+    friend.pressure = clampValue((friend.pressure ?? 35) + randomBetween(0, 3));
+    if (friend.monthsSinceContact >= 6) {
+      friend.closeness = clampValue((friend.closeness ?? 20) - 1);
+      friend.mood = clampValue(friend.mood - 1);
+    }
+  });
+  if (action.id === "friends" && state.friends.length) {
+    const friend = [...state.friends].sort((a, b) => (a.mood - a.pressure) - (b.mood - b.pressure))[0];
+    friend.monthsSinceContact = 0;
+    friend.mood = clampValue(friend.mood + 5);
+    friend.pressure = clampValue(friend.pressure - 5);
+    friend.closeness = clampValue((friend.closeness ?? 20) + 2);
+  }
+  const strainedFriend = state.friends.find((friend) => friend.mood <= 34 && friend.pressure >= 58 && friend.monthsSinceContact >= 3);
+  if (strainedFriend && Math.random() < 0.4) scenes.push(createFriendCareScene(strainedFriend));
+
+  if (state.career) {
+    state.career.colleagues ??= [];
+    state.career.colleagues.forEach((colleague) => {
+      colleague.monthsSinceSupport = (colleague.monthsSinceSupport ?? 0) + 1;
+      colleague.mood = clampValue((colleague.mood ?? 56) + randomBetween(-2, 2));
+      colleague.pressure = clampValue((colleague.pressure ?? 42) + randomBetween(0, 3));
+      colleague.reliability = clampValue((colleague.reliability ?? 55) + randomBetween(-1, 1));
+      if (colleague.monthsSinceSupport >= 5) colleague.closeness = clampValue((colleague.closeness ?? 35) - 1);
+    });
+    if (action.id === "network" && state.career.colleagues.length) {
+      const colleague = [...state.career.colleagues].sort((a, b) => b.pressure - a.pressure)[0];
+      colleague.monthsSinceSupport = 0;
+      colleague.mood = clampValue(colleague.mood + 4);
+      colleague.pressure = clampValue(colleague.pressure - 4);
+      colleague.closeness = clampValue((colleague.closeness ?? 35) + 2);
+    }
+    const strainedColleague = state.career.colleagues.find((item) => item.pressure >= 66 && item.monthsSinceSupport >= 3);
+    if (strainedColleague && Math.random() < 0.35) scenes.push(createColleagueSupportScene(strainedColleague));
+  }
+
+  return scenes.slice(0, 1);
+}
+
+function createParentHealthScene() {
+  return {
+    id: createId(), icon: "🏥", title: "家里人的体检单",
+    story: `${state.character.parent}。最近家里提到体检结果不太理想，问题还没有到必须住院的程度，但已经不能再只靠“没事”两个字糊弄过去。`,
+    choices: [
+      { label: "请半天假陪去复查", effects: { family: 7, health: -1, money: -4 }, special: { type: "supportFamily", amount: 24, health: 6 }, result: "检查排队很久，结果也不轻松，但家里第一次认真把后续安排写了下来。" },
+      { label: "先转一笔钱，让家里自己安排", effects: { family: 4, money: -8, mood: -1 }, special: { type: "supportFamily", amount: 30, health: 3 }, result: "钱解决了一部分现实问题，也提醒你：家庭责任不只是偶尔问候。" }
+    ]
+  };
+}
+
+function createFriendCareScene(friend) {
+  return {
+    id: createId(), icon: "💬", title: `${friend.name}很久没有主动说话`,
+    story: `${friend.name}最近状态明显低落，朋友圈和聊天窗口都安静了许多。你们上次认真说话已经过去 ${friend.monthsSinceContact} 个月。`,
+    choices: [
+      { label: `约${friend.name}出来吃点东西`, effects: { social: 5, mood: 2, money: -4 }, special: { type: "supportFriend", friendId: friend.id, mood: 10, pressure: -8, closeness: 8 }, result: `${friend.name}没有一下子变好，但愿意把近况讲出来。关系重新接上了线。` },
+      { label: "发一段认真消息，先不强求见面", effects: { social: 3, mood: 1 }, special: { type: "supportFriend", friendId: friend.id, mood: 5, pressure: -4, closeness: 4 }, result: "回复来得很慢，但至少对方知道你还记得。" }
+    ]
+  };
+}
+
+function createColleagueSupportScene(colleague) {
+  return {
+    id: createId(), icon: "🧩", title: `${colleague.name}快被交付压垮了`,
+    story: `${colleague.name}连续几天都在处理返工，压力已经写在脸上。你可以帮一把，也可以守住自己的工作边界。`,
+    choices: [
+      { label: "帮忙拆分任务，今晚一起收尾", effects: { social: 5, study: 2, health: -3 }, special: { type: "supportColleague", colleagueId: colleague.id, pressure: -10, mood: 6, closeness: 7 }, result: "任务没有神奇消失，但你们把最容易出错的部分重新排了顺序。" },
+      { label: "只给建议，不接走对方的任务", effects: { study: 2, mood: 2 }, special: { type: "supportColleague", colleagueId: colleague.id, pressure: -4, mood: 2, closeness: 2 }, result: "你保住了自己的节奏，也给了对方一个能继续推进的方法。" }
+    ]
+  };
+}
+
 function applyMonthlyPressure(action) {
   const cared = new Set(ACTION_CARE[action.id] ?? []);
   const effects = {};
@@ -796,6 +977,37 @@ function applyCareerEconomy(action) {
   );
   return shortfall > 0 ? createArrearsScene(shortfall) : null;
 }
+
+function updateGoalProgress() {
+  const goalScenes = [];
+  state.goals = state.goals.map(goal => {
+    if (goal.completed) return goal;
+    goal.monthsPassed = (goal.monthsPassed ?? 0) + 1;
+    // 计算当前进度
+    let progress = 0;
+    if (goal.stat === "money") progress = state.stats.money;
+    else if (goal.stat === "propertiesOwned") progress = state.lifeStats.propertiesOwned;
+    else if (goal.stat === "careerLevel") progress = state.lifeStats.careerLevel;
+    else if (goal.stat === "health") progress = state.stats.health;
+    else if (goal.stat === "familySupport") progress = state.lifeStats.familySupport;
+    else if (goal.stat === "primarySkill") progress = state.lifeStats.primarySkill;
+    goal.progress = Math.min(goal.target, progress);
+    // 判断是否达成
+    if (goal.progress >= goal.target && !goal.completed) {
+      goal.completed = true;
+      const milestone = MILESTONE_SCENES[goal.id];
+      if (milestone) goalScenes.push({ id: createId(), ...milestone });
+    }
+    // 判断是否超时失败
+    if (goal.monthsPassed > goal.months * 1.5 && !goal.completed) {
+      goal.completed = true;
+      goal.failed = true;
+    }
+    return goal;
+  }).filter(goal => !goal.failed); // 移除失败目标
+  return goalScenes;
+}
+
 
 function createArrearsScene(shortfall) {
   const career = state.career;
@@ -1015,7 +1227,14 @@ function loadGame() {
       saved.memories = saved.memories.map((memory) => memory.text === previousStory ? { ...memory, text: saved.character.story } : memory);
     }
     const previousVersion = saved.version ?? 1;
-    saved.version = 12;
+    saved.version = 13;
+    saved.goals ??= [];
+    saved.lifeStats ??= { propertiesOwned: 0, careerLevel: 0, familySupport: 0, primarySkill: 0 };
+    saved.relationships ??= createRelationshipState();
+    saved.relationships.parentAge ??= randomBetween(38, 48);
+    saved.relationships.parentHealth ??= randomBetween(62, 82);
+    saved.relationships.lastFamilyContact ??= 0;
+    saved.relationships.supportMonths ??= 0;
     saved.education ??= { route: "undecided", track: saved.turn < 30 ? "middle-school" : "academic", exitTurn: null };
     if (saved.education.track === "university" && !saved.education.admission) {
       const wasVocational = saved.memories.some((memory) => String(memory.stage ?? "").includes("中职"));
@@ -1033,6 +1252,7 @@ function loadGame() {
       };
     }
     saved.friends ??= [];
+    saved.friends = saved.friends.map(normalizeFriend);
     saved.projects ??= [];
     saved.projects = saved.projects.map((project) => ({ phase: 1, quality: 0, status: "active", notes: [], ...project }));
     saved.economy ??= { savingsGoal: null, ledger: [] };
@@ -1055,7 +1275,7 @@ function loadGame() {
       saved.investments.stocks.averageCosts[product.id] ??= 0;
     });
     saved.career ??= null;
-    if (saved.career) saved.career.colleagues ??= [];
+    if (saved.career) saved.career.colleagues = (saved.career.colleagues ?? []).map(normalizeColleague);
     if (saved.career && previousVersion < 12) {
       const educationBonus = ({ postgraduate: 7, elite: 5, overseas: 5, bachelor: 3, topup: 3, junior: 1 }[saved.education.admission?.level] ?? 0);
       const floor = saved.career.path === "business"
@@ -1117,6 +1337,15 @@ function getEducationSummary() {
   const admission = state.education.admission;
   if (admission) return `${admission.school} · ${admission.major}`;
   return state.character.school;
+}
+
+function getFriendNetworkLabel() {
+  if (!state.friends.length) return "暂无";
+  const lowMood = state.friends.filter((friend) => (friend.mood ?? 58) <= 40).length;
+  const neglected = state.friends.filter((friend) => (friend.monthsSinceContact ?? 0) >= 6).length;
+  if (lowMood) return `${lowMood}人低落`;
+  if (neglected) return `${neglected}人疏远`;
+  return "稳定";
 }
 
 function formatEffectSummary(effects) {
@@ -1499,7 +1728,11 @@ function generateColleague() {
     name: `${pick(BACKGROUND_DATA.surnames)}${pick(identity === "girl" ? BACKGROUND_DATA.girlNames : BACKGROUND_DATA.boyNames)}`,
     role: pick(["同组同事", "资深同事", "项目搭档", "隔壁组同事"]),
     trait: pick(["做事仔细但说话直接", "消息灵通但很看重回报", "平时安静，关键时刻愿意帮忙", "能力不错，也有很强的个人打算"]),
-    closeness: 35
+    closeness: 35,
+    mood: randomBetween(42, 66),
+    pressure: randomBetween(34, 58),
+    reliability: randomBetween(45, 70),
+    monthsSinceSupport: 0
   };
 }
 
@@ -2146,6 +2379,10 @@ function generateFriend() {
     identity,
     trait: pick(["说话很慢但很细心", "看起来外向，其实很怕被忽略", "成绩普通，却特别讲义气", "喜欢画画，总在课本边角涂鸦", "不太爱说话，但记得别人随口提过的事"]),
     closeness: 20,
+    mood: randomBetween(45, 70),
+    health: randomBetween(48, 72),
+    pressure: randomBetween(24, 48),
+    monthsSinceContact: 0,
     metAt: getStage(state.turn).label
   };
 }
@@ -2287,6 +2524,24 @@ function createCollegeAdmission(level, score) {
   };
 }
 
+function createGoalSelectionScene() {
+  const candidates = LIFE_GOALS.filter(goal => {
+    if (goal.id === "first-home" && (state.investments.properties?.length ?? 0) > 0) return false;
+    if (goal.id === "career-promotion" && state.career?.path === "business") return false; // 创业者没有晋升概念
+    return true;
+  });
+  return {
+    id: createId(), icon: "🎯", title: "给未来设定一个目标",
+    story: "接下来的几年，除了应付每月账单，你希望自己的人生往哪个方向积累？目标不一定能实现，但它会影响你看待日常选择的方式。",
+    choices: candidates.slice(0, 3).map(goal => ({
+      label: `${goal.icon} ${goal.name}（${goal.months} 个月内）`,
+      effects: { mood: 2 },
+      special: { type: "addGoal", goal },
+      result: `你写下“${goal.name}”作为下一个长期目标。从现在起，你的每月结算会显示进度。`
+    }))
+  };
+}
+
 function getCareerEducationBonus() {
   const level = state.education.admission?.level;
   return ({ postgraduate: 7, elite: 5, overseas: 5, bachelor: 3, topup: 3, junior: 1 }[level] ?? 0);
@@ -2386,10 +2641,29 @@ function createCollegeGraduationScene() {
 
 function applySpecialChoice(special) {
   if (!special) return;
-  if (special.type === "addFriend" && !state.friends.some((friend) => friend.id === special.friend.id)) state.friends.push(special.friend);
+  if (special.type === "addFriend" && !state.friends.some((friend) => friend.id === special.friend.id)) state.friends.push(normalizeFriend(special.friend));
   if (special.type === "adjustFriend") {
     const friend = state.friends.find((item) => item.id === special.friendId);
-    if (friend) friend.closeness = Math.max(0, Math.min(100, friend.closeness + special.amount));
+    if (friend) {
+      friend.closeness = clampValue(friend.closeness + special.amount);
+      friend.monthsSinceContact = 0;
+    }
+  }
+  if (special.type === "supportFriend") {
+    const friend = state.friends.find((item) => item.id === special.friendId);
+    if (friend) {
+      friend.mood = clampValue((friend.mood ?? 58) + (special.mood ?? 0));
+      friend.pressure = clampValue((friend.pressure ?? 35) + (special.pressure ?? 0));
+      friend.closeness = clampValue((friend.closeness ?? 20) + (special.closeness ?? 0));
+      friend.monthsSinceContact = 0;
+    }
+  }
+  if (special.type === "supportFamily") {
+    normalizeRelationshipState();
+    state.relationships.parentHealth = clampValue(state.relationships.parentHealth + (special.health ?? 0));
+    state.relationships.lastFamilyContact = 0;
+    state.relationships.supportMonths += 1;
+    state.lifeStats.familySupport = (state.lifeStats.familySupport ?? 0) + (special.amount ?? 0);
   }
   if (special.type === "startProject" && !state.projects.some((project) => project.id === special.project.id)) {
     state.projects.push({ ...special.project, notes: [...(special.project.notes ?? [])] });
@@ -2430,12 +2704,26 @@ function applySpecialChoice(special) {
     state.economy.lottery.won += special.prize;
     state.economy.lottery.bestPrize = Math.max(state.economy.lottery.bestPrize, special.prize);
   }
+  if (special.type === "addGoal") {
+    const goal = special.goal;
+    state.goals.push({
+      ...goal,
+      startedAt: getStage(state.turn).label,
+      progress: 0,
+      monthsPassed: 0,
+      completed: false
+    });
+  }
   if (special.type === "startCareer") {
     state.career = { ...special.career, startedTurn: state.turn, months: 0, arrears: 0 };
     state.education.track = "work";
     state.education.exitTurn = state.turn;
     state.education.retaking = false;
     if (special.graduated && state.education.admission) state.education.admission.graduatedAt = getStage(state.turn).label;
+    // 如果还没有长期目标，触发目标选择
+    if (state.goals.length === 0) {
+      state.pendingScenes.unshift(createGoalSelectionScene());
+    }
   }
   if (special.type === "payArrears" && state.career) {
     const payment = Math.min(special.amount, state.career.arrears ?? 0, state.stats.money);
@@ -2493,7 +2781,19 @@ function applySpecialChoice(special) {
   }
   if (special.type === "adjustColleague" && state.career) {
     const colleague = state.career.colleagues?.find((item) => item.id === special.colleagueId);
-    if (colleague) colleague.closeness = Math.max(0, Math.min(100, colleague.closeness + special.amount));
+    if (colleague) {
+      colleague.closeness = clampValue(colleague.closeness + special.amount);
+      colleague.monthsSinceSupport = 0;
+    }
+  }
+  if (special.type === "supportColleague" && state.career) {
+    const colleague = state.career.colleagues?.find((item) => item.id === special.colleagueId);
+    if (colleague) {
+      colleague.pressure = clampValue((colleague.pressure ?? 42) + (special.pressure ?? 0));
+      colleague.mood = clampValue((colleague.mood ?? 56) + (special.mood ?? 0));
+      colleague.closeness = clampValue((colleague.closeness ?? 35) + (special.closeness ?? 0));
+      colleague.monthsSinceSupport = 0;
+    }
   }
   if (special.type === "addVenture") {
     state.investments.ventures ??= [];
@@ -2696,6 +2996,7 @@ function createCareerActionScene(action) {
   if (action.id === "leisure") return createCareerLeisureScene();
   const career = state.career;
   const isBusiness = career.path === "business";
+  const networkColleague = action.id === "network" && !isBusiness ? ensureCareerColleague() : null;
   const sceneMap = {
     work: {
       icon: "💼", title: `${career.employer}的一次考核`,
@@ -2713,10 +3014,10 @@ function createCareerActionScene(action) {
       ]
     },
     network: {
-      icon: "🤝", title: "行业里的一次新联系", story: `一位前辈愿意介绍你认识同行，但聚会需要花时间和一笔交通餐饮费。`,
+      icon: "🤝", title: "行业里的一次新联系", story: `${networkColleague?.name ?? "一位同事"}提到下班后有个小范围同行聚会。参加要花时间和一笔交通餐饮费，但也能真正知道别人最近在做什么。`,
       choices: [
-        { label: "赴约并认真了解对方的工作", effects: { social: 5, money: -3, study: 2 }, result: "没有立刻得到工作，但你知道了行业里真实的招聘标准。" },
-        { label: "先在线联系，保留以后见面的机会", effects: { social: 3, mood: 1 }, result: "关系没有突飞猛进，却留下了一条以后可以继续联系的线。" }
+        { label: "赴约并认真了解对方的工作", effects: { social: 5, money: -3, study: 2 }, special: networkColleague ? { type: "supportColleague", colleagueId: networkColleague.id, pressure: -5, mood: 4, closeness: 5 } : undefined, result: "没有立刻得到工作，但你知道了行业里真实的招聘标准，也和身边同事多了一层真实联系。" },
+        { label: "先在线联系，保留以后见面的机会", effects: { social: 3, mood: 1 }, special: networkColleague ? { type: "adjustColleague", colleagueId: networkColleague.id, amount: 2 } : undefined, result: "关系没有突飞猛进，却留下了一条以后可以继续联系的线。" }
       ]
     },
     "job-search": {
@@ -2780,8 +3081,8 @@ function createWorkFamilyScene() {
     id: createId(), icon: "🏠", title: "工资到账后的家庭消息",
     story: `${state.character.parent}。这个月家里有一笔日常开支需要分担，而你也有自己的生活费用和计划。进入社会后，陪伴家人常常和钱、时间同时有关。`,
     choices: [
-      { label: "承担一部分开支，也把自己的预算说清楚", effects: { family: 5, money: -6, mood: 1 }, result: "你帮了家里，也没有假装自己的钱没有边界。" },
-      { label: "这次先不出钱，安排时间回去做事", effects: { family: 4, health: -1, mood: 2 }, result: "你用一个下午处理了家里的杂事。付出的不是现金，却同样具体。" }
+      { label: "承担一部分开支，也把自己的预算说清楚", effects: { family: 5, money: -6, mood: 1 }, special: { type: "supportFamily", amount: 30, health: 2 }, result: "你帮了家里，也没有假装自己的钱没有边界。" },
+      { label: "这次先不出钱，安排时间回去做事", effects: { family: 4, health: -1, mood: 2 }, special: { type: "supportFamily", amount: 14, health: 4 }, result: "你用一个下午处理了家里的杂事。付出的不是现金，却同样具体。" }
     ]
   };
 }
@@ -2905,4 +3206,3 @@ function createId() {
 }
 
 if (state) showGame(); else showSetup();
-
